@@ -23,6 +23,9 @@ typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t  u8;
 
+typedef double r64;
+typedef float r32;
+
 typedef u64 b64;
 typedef u32 b32;
 typedef u16 b16;
