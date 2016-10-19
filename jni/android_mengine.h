@@ -10,6 +10,7 @@
 /* Standard Library Headers */
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 /* Type Definitions */
 typedef int64_t s64;
@@ -26,6 +27,9 @@ typedef u64 b64;
 typedef u32 b32;
 typedef u16 b16;
 typedef u8 b8;
+
+#define true 1
+#define false 0
 
 typedef struct android_app android_app;
 typedef struct android_poll_source android_poll_source;
@@ -59,5 +63,8 @@ static char __logTemp[__LogTempSize];
 		Error("Assertion failed!"); \
 		*(int *) 0 = 0; \
 	}
+
+#define ZeroStruct(Struct) \
+	memset(&(Struct), 0 , sizeof((Struct)))
 
 #endif
