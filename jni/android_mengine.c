@@ -12,21 +12,55 @@ void AndroidMainCallback(android_app * App, s32 cmd){
 	switch(cmd){
 		/* TODO Log Events */
     	case APP_CMD_INPUT_CHANGED:
+			Debug("APP_CMD_INPUT_CHANGED");
+			break;
     	case APP_CMD_INIT_WINDOW:
+			Debug("APP_CMD_INIT_WINDOW");
+			break;
     	case APP_CMD_TERM_WINDOW:
-    	case APP_CMD_WINDOW_RESIZED:
-    	case APP_CMD_WINDOW_REDRAW_NEEDED:
-    	case APP_CMD_CONTENT_RECT_CHANGED:
-    	case APP_CMD_GAINED_FOCUS:
-    	case APP_CMD_LOST_FOCUS:
-    	case APP_CMD_CONFIG_CHANGED:
-    	case APP_CMD_LOW_MEMORY:
-    	case APP_CMD_START:
-    	case APP_CMD_RESUME:
-    	case APP_CMD_SAVE_STATE:
-    	case APP_CMD_PAUSE:
-    	case APP_CMD_STOP:
-    	case APP_CMD_DESTROY:
+ 			Debug("APP_CMD_TERM_WINDOW");
+			break;
+	   	case APP_CMD_WINDOW_RESIZED:
+ 			Debug("APP_CMD_WINDOW_RESIZED");
+			break;
+	   	case APP_CMD_WINDOW_REDRAW_NEEDED:
+ 			Debug("APP_CMD_WINDOW_REDRAW_NEEDED");
+			break;
+	   	case APP_CMD_CONTENT_RECT_CHANGED:
+ 			Debug("APP_CMD_CONTENT_RECT_CHANGED");
+			break;
+	   	case APP_CMD_GAINED_FOCUS:
+ 			Debug("APP_CMD_GAINED_FOCUS");
+			break;
+	   	case APP_CMD_LOST_FOCUS:
+ 			Debug("APP_CMD_LOST_FOCUS");
+			break;
+	   	case APP_CMD_CONFIG_CHANGED:
+ 			Debug("APP_CMD_CONFIG_CHANGED");
+			break;
+	   	case APP_CMD_LOW_MEMORY:
+ 			Debug("APP_CMD_LOW_MEMORY");
+			break;
+	   	case APP_CMD_START:
+ 			Debug("APP_CMD_START");
+			break;
+	   	case APP_CMD_RESUME:
+ 			Debug("APP_CMD_RESUME");
+			break;
+	   	case APP_CMD_SAVE_STATE:
+			Debug("APP_CMD_SAVE_STATE");
+			break;
+		case APP_CMD_PAUSE:
+   			Debug("APP_CMD_PAUSE");
+			break;
+		case APP_CMD_STOP:
+ 			Debug("APP_CMD_STOP");
+			break;
+   		case APP_CMD_DESTROY:
+			Debug("APP_CMD_DESTROY");
+			break;
+		default:
+			Warning("Some commands are missing!")
 			break;
 	}
 }
