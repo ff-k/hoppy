@@ -105,16 +105,26 @@ static void AndroidRender(ANativeWindow * Window){
 	}
 }
 
+static void AndroidOnActivate(android_app * App){
+	AndroidInitWindow(App->window);
+	AndroidRender(App->window);
+}
+
+static void AndroidOnDeactivate(){
+	WindowInitialised = false;
+}
+
 void AndroidMainCallback(android_app * App, s32 cmd){
 	switch(cmd){
     	case APP_CMD_INPUT_CHANGED:
 			Debug("APP_CMD_INPUT_CHANGED");
 			break;
     	case APP_CMD_INIT_WINDOW:
+			AndroidOnActivate(App);
 			Debug("APP_CMD_INIT_WINDOW");
-			AndroidInitWindow(App->window);
 			break;
     	case APP_CMD_TERM_WINDOW:
+			AndroidOnDeactivate();
  			Debug("APP_CMD_TERM_WINDOW");
 			break;
 	   	case APP_CMD_WINDOW_RESIZED:
@@ -176,6 +186,9 @@ void android_main(android_app * App) {
 	s32 Result;
 	s32 Events;
 	android_poll_source * Source;
+	
+	Debug("Internal dir : %s", App->activity->internalDataPath);
+	Debug("External dir : %s", App->activity->externalDataPath);
 
 	/* NOTE(furkan) : If you look into android_native_glue.c,
 	it seems like app_dummy() function does nothing useful.
