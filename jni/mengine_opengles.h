@@ -10,6 +10,8 @@ typedef struct opengles_manager{
 	EGLContext Context;
 
 	v2u ScreenDim;
+
+	b8 IsInitialised;
 } opengles_manager;
 
 #endif

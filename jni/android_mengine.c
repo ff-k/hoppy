@@ -3,6 +3,8 @@
 #include "mengine_opengles.c"
 #include "hoppy.c"
 
+#define SW_RENDERER 0
+
 static PlatformMemoryAlloc(AndroidMemoryAllocate){
 	void * Allocated = malloc(size);
 	if(!Allocated){
@@ -59,27 +61,30 @@ static void AndroidUnlockWindow(ANativeWindow * Window){
 is not good. WindowInitialised will be deleted */
 static b8 WindowInitialised = false;
 static void
-AndroidInitWindow(ANativeWindow * Window, opengles_manager * GLESManager){
-#if 0
+AndroidInitWindow(ANativeWindow * Window){
 	if(ANativeWindow_setBuffersGeometry(Window, 0, 0, 
 										WINDOW_FORMAT_RGBX_8888) < 0){
 		Error("An error occured while setting window's buffer geometry");
 	}
-#else
-	OpenGLESInit(Window, GLESManager);
-#endif
-	WindowInitialised = true;
 }
 
-static void AndroidClearWindow(ANativeWindow_Buffer * WindowBuffer){
-	u32 ClearColor = 0x0;
+static void AndroidClearWindow(ANativeWindow_Buffer * WindowBuffer, v3 ClearColor){
+#if SW_RENDERER
+	u32 ClearColor = (0xFF << 24) |
+					(((u32)ClearColor.b) << 16) |
+					(((u32)ClearColor.g) <<  8) |
+					(((u32)ClearColor.r) <<  0);
 	memset(WindowBuffer->bits, ClearColor, 
 		   WindowBuffer->stride * WindowBuffer->height * sizeof(u32));
+#else
+	glClearColor(ClearColor.r, ClearColor.g, ClearColor.b, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+#endif
 }
 
 static void
 AndroidDrawRect(ANativeWindow_Buffer * WindowBuffer, rect Rect, r32 OffsetX, r32 OffsetY){
-	u32 * Row = ((u32 *) WindowBuffer->bits) + (WindowBuffer->stride * Rect.Position.y);
+	u32 * Row = ((u32 *) WindowBuffer->bits) + (WindowBuffer->stride * (u32) Rect.Position.y);
 	
 	s32 RowIndex;
 	s32 ColIndex;
@@ -95,43 +100,54 @@ AndroidDrawRect(ANativeWindow_Buffer * WindowBuffer, rect Rect, r32 OffsetX, r32
 	}
 }
 
-static void AndroidRender(ANativeWindow * Window, r32 OffsetX, r32 OffsetY){
+static void 
+AndroidRender(ANativeWindow * Window, opengles_manager * GLESManager, r32 OffsetX, r32 OffsetY){
 	if(!WindowInitialised) return;
-	Debug("Rendering");
+
+#if SW_RENDERER
 	ANativeWindow_Buffer WindowBuffer;
 	if(AndroidLockWindow(Window, &WindowBuffer)){
-		AndroidClearWindow(&WindowBuffer);
+		v3 ClearColor = {0.0f, 0.0f, 0.0f, 1.0f};
+		AndroidClearWindow(&WindowBuffer, ClearColor);
 
 		rect Rect;
-		Rect.Size = (v2u){WindowBuffer.width, WindowBuffer.height};
-		Rect.Position = (v2i){0, 0};
+		Rect.Size = (v2){(r32)WindowBuffer.width, (r32)WindowBuffer.height};
+		Rect.Position = (v2){0.0f, 0.0f};
 		AndroidDrawRect(&WindowBuffer, Rect, OffsetX, OffsetY);
 	
 		AndroidUnlockWindow(Window);
 	}
+#else
+	if(!GLESManager->IsInitialised) return;
+	v3 ClearColor = {sinf(OffsetX), cosf(OffsetY), cosf(OffsetX)+sinf(OffsetY)};
+	AndroidClearWindow(0, ClearColor);
+	if(eglSwapBuffers(GLESManager->Display, GLESManager->Surface) != EGL_TRUE){
+		Debug("SwapBuffers failed!");
+	}
+#endif
 }
 
 static void AndroidOnActivate(android_app * App){
-	ANativeWindow_Buffer WindowBuffer;
-	if(AndroidLockWindow(App->window, &WindowBuffer)){
-		android_shared_data * Shared = App->userData;
-		opengles_manager * GLESManager = &Shared->GLESManager;
-		GLESManager->ScreenDim = (v2u){WindowBuffer.width, WindowBuffer.height};
-
-		AndroidUnlockWindow(App->window);
-		AndroidInitWindow(App->window, GLESManager);
-	} else {
-		Debug("AndroidLockWindow failed in onActivate");
-	}
+#if SW_RENDERER
+	AndroidInitWindow(App->window);
+#else
+	android_shared_data * Shared = App->userData;
+	opengles_manager * GLESManager = &Shared->GLESManager;
+	
+	OpenGLESInit(App->window, GLESManager);
+#endif
+	WindowInitialised = true;
 }
 
 static void AndroidOnDeactivate(android_app * App){
 	WindowInitialised = false;
-	
+
+#if !SW_RENDERER
 	android_shared_data * Shared = App->userData;
 	opengles_manager * GLESManager = &Shared->GLESManager;
 	
 	OpenGLESStop(GLESManager);
+#endif
 }
 
 void AndroidMainCallback(android_app * App, s32 cmd){
@@ -225,7 +241,6 @@ void android_main(android_app * App) {
 	AndroidInitGameMemory(&GameMemory);
 	
 	/* Main game loop */
-	Debug("Entering main loop");
 	r32 OffsetX = 0;
 	r32 OffsetY = 0;
 	while (Shared.IsRunning) {
@@ -237,39 +252,28 @@ void android_main(android_app * App) {
 		/* Render Frame */
 
 
-		Debug("Entering inner loop");
 		while (1) {
-			Debug("Polling");
 			Result = ALooper_pollAll(Shared.IsEnabled-1, 0, &Events, (void**) &Source);
-			Debug("Polled");
 			if(Result < 0){
 				break;
 			}
 
 			if (Source) {
-				Debug("Processing source");
 				Source->process(App, Source);
-			} else {
-				Debug("Source is null");
 			}
 			
 			if (App->destroyRequested) {
-				Debug("Destroy Requested");
 				Shared.IsRunning = false;
 				Shared.IsEnabled = false;
 				break;
 			}
 		}
-		Debug("Exited inner loop");
 
 		if(Shared.IsEnabled){
-			Debug("Updating game and rendering");
 			Game.Update(&GameMemory);
-//			AndroidRender(App->window, OffsetX, OffsetY);
-		} else {
-			Debug("App is not enabled");
+			AndroidRender(App->window, &Shared.GLESManager, OffsetX, OffsetY);
 		}
-		OffsetX += 4.0f;
-		OffsetY += 4.0f;
+		OffsetX += 0.01f;
+		OffsetY += 0.02f;
 	}
 }

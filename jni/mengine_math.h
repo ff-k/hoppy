@@ -1,6 +1,8 @@
 #ifndef INCLUDED_MENGINE_MATH
 #define INCLUDED_MENGINE_MATH
 
+#include <math.h>
+
 typedef struct v2{
 	union{
 		struct{
@@ -51,6 +53,11 @@ typedef struct v3{
 			r32 z;
 		};
 		struct{
+			r32 r;
+			r32 g;
+			r32 b;
+		};
+		struct{
 			r32 Width;
 			r32 Height;
 			r32 Depth;
@@ -65,6 +72,11 @@ typedef struct v3u{
 			u32 x;
 			u32 y;
 			u32 z;
+		};
+		struct{
+			u32 r;
+			u32 g;
+			u32 b;
 		};
 		struct{
 			u32 Width;
@@ -83,6 +95,11 @@ typedef struct v3i{
 			s32 z;
 		};
 		struct{
+			s32 r;
+			s32 g;
+			s32 b;
+		};
+		struct{
 			s32 Width;
 			s32 Height;
 			s32 Depth;
@@ -92,12 +109,11 @@ typedef struct v3i{
 } v3i;
 
 typedef struct rect{
-	v2u Size;
+	v2 Size;
 	u32 Color;
 
-	/* TODO(furkan) : Change them with V2(x,y) */
 	/* NOTE(furkan) : That vector points to bottom-left of the rectangle */
-	v2i Position;
+	v2 Position;
 } rect;
 
 #endif
