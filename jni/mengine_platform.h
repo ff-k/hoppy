@@ -37,7 +37,7 @@ typedef struct game_memory{
 	memsz Used;
 	memsz Capacity;
 
-	platform_api * PlatformAPI;
+	platform_api PlatformAPI;
 } game_memory;
 
 #define MEngineUpdate(name) void name(game_memory *Memory)

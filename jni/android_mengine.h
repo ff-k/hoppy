@@ -3,6 +3,8 @@
 
 #include <android_native_app_glue.h>
 #include "mengine_platform.h"
+#include "mengine_math.h"
+#include "mengine_opengles.h"
 
 #define Gigabytes(val) (val)*1024*1024*1024
 #define Megabytes(val) (val)*1024*1024
@@ -60,9 +62,10 @@ static char __logTemp[__LogTempSize];
 
 /* Platform structures */
 typedef struct android_shared_data{
+	opengles_manager GLESManager;
 	b8 IsRunning;
 	b8 IsEnabled;
-} shared_data;
+} android_shared_data;
 
 typedef struct android_game_functions{
 	game_update * Update;

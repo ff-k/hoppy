@@ -4,7 +4,7 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE    := MEngine
 LOCAL_SRC_FILES := android_mengine.c
-LOCAL_LDLIBS := -landroid -llog
+LOCAL_LDLIBS := -landroid -llog -lEGL -lGLESv2
 LOCAL_CFLAGS := -g
 LOCAL_STATIC_LIBRARIES := android_native_app_glue
 
