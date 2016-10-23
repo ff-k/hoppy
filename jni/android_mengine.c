@@ -1,23 +1,40 @@
 #include "android_mengine.h"
+#include "mengine_rect.h"
 
-typedef struct android_app android_app;
-typedef struct android_poll_source android_poll_source;
+#include "hoppy.c"
 
-typedef struct shared_data{
-	b8 IsRunning;
-	b8 IsEnabled;
-} shared_data;
+static PlatformMemoryAlloc(AndroidMemoryAllocate){
+	void * Allocated = malloc(size);
+	if(!Allocated){
+		Warning("Memory allocation failed!");
+	}
 
-typedef struct rect{
-	u32 Width;
-	u32 Height;
-	u32 Color;
+	return Allocated;
+}
 
-	/* TODO(furkan) : Change them with V2(x,y) */
-	/* NOTE(furkan) : That vector points to bottom-left of the rectangle */
-	s32 X;
-	s32 Y;
-} rect;
+static void AndroidInitPlatformAPI(platform_api * PlatformAPI){
+	ZeroStruct(*PlatformAPI);
+
+	PlatformAPI->AllocateMemory = AndroidMemoryAllocate;
+}
+
+static void 
+AndroidLoadGameFunctions(android_game_functions * Functions){
+	ZeroStruct(*Functions);
+
+	/* TODO(furkan) : Load from library */
+	Functions->Update = GameUpdate;
+}
+
+static void AndroidInitGameMemory(game_memory * Memory){
+	ZeroStruct(*Memory);
+
+	Memory->Memory = AndroidMemoryAllocate(InitialGameMemorySize);
+	Memory->Used = 0;
+	Memory->Capacity = InitialGameMemorySize;
+
+	AndroidInitPlatformAPI(Memory->PlatformAPI);
+}
 
 static b8 
 AndroidLockWindow(ANativeWindow * Window, 
@@ -33,22 +50,22 @@ static void AndroidUnlockWindow(ANativeWindow * Window){
 	ANativeWindow_unlockAndPost(Window);
 }
 
+/*	TODO(furkan) : Apparently, having a global variable for this thing
+is not good. WindowInitialised will be deleted */
+static b8 WindowInitialised = false;
 static void
 AndroidInitWindow(ANativeWindow * Window){
 	if(ANativeWindow_setBuffersGeometry(Window, 0, 0, 
 										WINDOW_FORMAT_RGBX_8888) < 0){
 		Error("An error occured while setting window's buffer geometry");
 	}
+	WindowInitialised = true;
 }
 
-static void AndroidClearWindow(ANativeWindow * Window){
+static void AndroidClearWindow(ANativeWindow_Buffer * WindowBuffer){
 	u32 ClearColor = 0x0;
-	ANativeWindow_Buffer WindowBuffer;
-	if(AndroidLockWindow(Window, &WindowBuffer)){
-		memset(WindowBuffer.bits, ClearColor, 
-			   WindowBuffer.stride * WindowBuffer.height * sizeof(u32));
-		AndroidUnlockWindow(Window);
-	}
+	memset(WindowBuffer->bits, ClearColor, 
+		   WindowBuffer->stride * WindowBuffer->height * sizeof(u32));
 }
 
 static void
@@ -60,14 +77,31 @@ AndroidDrawRect(ANativeWindow_Buffer * WindowBuffer, rect Rect){
 	for(RowIndex=0; RowIndex<Rect.Height; RowIndex++){
 		s32 ColumnRightMost = Rect.X + Rect.Width;
 		for(ColIndex=Rect.X; ColIndex<ColumnRightMost; ColIndex++){
-			Debug("Column : %d %d", RowIndex, ColIndex);
 			u32 Red = (u32)((((r32)(ColumnRightMost-ColIndex))/((r32)Rect.Width))*0xFF);
 			u32 Green = (u32)((((r32)(Rect.Height-RowIndex))/((r32)Rect.Height))*0xFF);
 			u32 Blue = 0;
-			Debug("%u %u %u", Red, Green, Blue);
 			Row[ColIndex] = (Blue << 16) | (Green << 8) | Red;
 		}
 		Row += WindowBuffer->stride;
+	}
+}
+
+static void AndroidRender(ANativeWindow * Window){
+	if(!WindowInitialised) return;
+
+	ANativeWindow_Buffer WindowBuffer;
+	if(AndroidLockWindow(Window, &WindowBuffer)){
+		AndroidClearWindow(&WindowBuffer);
+
+		rect Rect;
+		Rect.Width = WindowBuffer.width-64;
+		Rect.Height = WindowBuffer.height-64;
+		Rect.Color = 0x0000FF00;
+		Rect.X = 32;
+		Rect.Y = 32;
+		AndroidDrawRect(&WindowBuffer, Rect);
+	
+		AndroidUnlockWindow(Window);
 	}
 }
 
@@ -79,20 +113,6 @@ void AndroidMainCallback(android_app * App, s32 cmd){
     	case APP_CMD_INIT_WINDOW:
 			Debug("APP_CMD_INIT_WINDOW");
 			AndroidInitWindow(App->window);
-			AndroidClearWindow(App->window);
-
-			ANativeWindow_Buffer WindowBuffer;
-			AndroidLockWindow(App->window, &WindowBuffer);
-
-			rect Rect;
-			Rect.Width = WindowBuffer.width-64;
-			Rect.Height = WindowBuffer.height-64;
-			Rect.Color = 0x0000FF00;
-			Rect.X = 32;
-			Rect.Y = 32;
-			AndroidDrawRect(&WindowBuffer, Rect);
-
-			AndroidUnlockWindow(App->window);
 			break;
     	case APP_CMD_TERM_WINDOW:
  			Debug("APP_CMD_TERM_WINDOW");
@@ -143,6 +163,8 @@ void AndroidMainCallback(android_app * App, s32 cmd){
 }
 
 void android_main(android_app * App) {
+
+	/* Initialise android platform layer */
 	shared_data Shared;
 	ZeroStruct(Shared);
 	
@@ -155,13 +177,29 @@ void android_main(android_app * App) {
 	s32 Events;
 	android_poll_source * Source;
 
-
-	/*	TODO : Delete app_dummy() call
-		Use this function only to make sure that glue works properly 
-	*/
+	/* NOTE(furkan) : If you look into android_native_glue.c,
+	it seems like app_dummy() function does nothing useful.
+	But if you do not call it here, the application will fail at the
+	beginning. */
 	app_dummy();
 
+	/* Initialise MEngine */
+	android_game_functions Game;
+//	AndroidLoadGameFunctions(&Game);
+
+	game_memory GameMemory;
+//	AndroidInitGameMemory(&GameMemory);
+	
+	/* Main game loop */
 	while (Shared.IsRunning) {
+		/* Process platfrom messages */
+		/* Process input */
+		/* Game Update */
+		/* Audio Update */
+		/* Wait for FPS */
+		/* Render Frame */
+
+
 		while (1) {
 			Result = ALooper_pollAll(-1, 0, &Events, (void**) &Source);
 			if(Result < 0){
@@ -180,7 +218,8 @@ void android_main(android_app * App) {
 		}
 
 		if(Shared.IsEnabled){
-			/* TODO(furkan) : Game loop will be here, I guess */
+			Game.Update(&GameMemory);
+			AndroidRender(App->window);
 		}
 	}
 }
