@@ -1,6 +1,3 @@
-#ifndef INCLUDED_ANDROID_MENGINE
-#define INCLUDED_ANDROID_MENGINE
-
 #include <android_native_app_glue.h>
 #include "mengine_platform.h"
 #include "mengine_math.h"
@@ -59,7 +56,6 @@ static char __logTemp[__LogTempSize];
 #define ZeroStruct(Struct) \
 	memset(&(Struct), 0 , sizeof((Struct)))
 
-
 /* Platform structures */
 typedef struct android_shared_data{
 	opengles_manager GLESManager;
@@ -70,5 +66,3 @@ typedef struct android_shared_data{
 typedef struct android_game_functions{
 	game_update * Update;
 } android_game_functions;
-
-#endif

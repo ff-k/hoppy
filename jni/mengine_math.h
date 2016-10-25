@@ -1,6 +1,3 @@
-#ifndef INCLUDED_MENGINE_MATH
-#define INCLUDED_MENGINE_MATH
-
 #include <math.h>
 
 typedef struct v2{
@@ -115,5 +112,3 @@ typedef struct rect{
 	/* NOTE(furkan) : That vector points to bottom-left of the rectangle */
 	v2 Position;
 } rect;
-
-#endif
