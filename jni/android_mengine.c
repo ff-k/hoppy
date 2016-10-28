@@ -1,9 +1,8 @@
 #include "android_mengine.h"
 
 #include "mengine_opengles.c"
+#include "mengine_render.c"
 #include "hoppy.c"
-
-#define SW_RENDERER 0
 
 static PlatformMemoryAlloc(AndroidMemoryAllocate){
 	void * Allocated = malloc(size);
@@ -22,7 +21,7 @@ static void AndroidInitPlatformAPI(platform_api * PlatformAPI){
 }
 
 static void 
-AndroidLoadGameFunctions(android_game_functions * Functions){
+AndroidLoadGameFunctions(game_functions * Functions){
 	ZeroStruct(*Functions);
 
 	/* TODO(furkan) : Load from library */
@@ -57,93 +56,53 @@ static void AndroidUnlockWindow(ANativeWindow * Window){
 	ANativeWindow_unlockAndPost(Window);
 }
 
-/*	TODO(furkan) : Apparently, having a global variable for this thing
-is not good. WindowInitialised will be deleted */
-static b8 WindowInitialised = false;
 static void
-AndroidInitWindow(ANativeWindow * Window){
+AndroidInitRenderer(android_app * App){
+	ANativeWindow * Window = App->window;
+	android_shared_data * Shared = App->userData;
+#if SW_RENDERER
 	if(ANativeWindow_setBuffersGeometry(Window, 0, 0, 
 										WINDOW_FORMAT_RGBX_8888) < 0){
 		Error("An error occured while setting window's buffer geometry");
 	}
-}
-
-static void AndroidClearWindow(ANativeWindow_Buffer * WindowBuffer, v3 ClearColor){
-#if SW_RENDERER
-	u32 ClearColor = (0xFF << 24) |
-					(((u32)ClearColor.b) << 16) |
-					(((u32)ClearColor.g) <<  8) |
-					(((u32)ClearColor.r) <<  0);
-	memset(WindowBuffer->bits, ClearColor, 
-		   WindowBuffer->stride * WindowBuffer->height * sizeof(u32));
 #else
-	glClearColor(ClearColor.r, ClearColor.g, ClearColor.b, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
+	opengles_manager * GLESManager = &Shared->GLESManager;
+	OpenGLESInit(Window, GLESManager);
 #endif
-}
-
-static void
-AndroidDrawRect(ANativeWindow_Buffer * WindowBuffer, rect Rect, r32 OffsetX, r32 OffsetY){
-	u32 * Row = ((u32 *) WindowBuffer->bits) + (WindowBuffer->stride * (u32) Rect.Position.y);
-	
-	s32 RowIndex;
-	s32 ColIndex;
-	for(RowIndex=0; RowIndex<Rect.Size.Height; RowIndex++){
-		s32 ColumnRightMost = Rect.Position.x + Rect.Size.Width;
-		for(ColIndex=Rect.Position.x; ColIndex<ColumnRightMost; ColIndex++){
-			u32 Red = (u32)((((r32)(ColumnRightMost-ColIndex+OffsetX))/((r32)Rect.Size.Width))*0xFF);
-			u32 Green = (u32)((((r32)(Rect.Size.Height-RowIndex+OffsetY))/((r32)Rect.Size.Height))*0xFF);
-			u32 Blue = 0;
-			Row[ColIndex] = (Blue << 16) | (Green << 8) | Red;
-		}
-		Row += WindowBuffer->stride;
-	}
+	Shared->RendererAvailable = true;
 }
 
 static void 
-AndroidRender(ANativeWindow * Window, opengles_manager * GLESManager, r32 OffsetX, r32 OffsetY){
-	if(!WindowInitialised) return;
-
-#if SW_RENDERER
-	ANativeWindow_Buffer WindowBuffer;
-	if(AndroidLockWindow(Window, &WindowBuffer)){
-		v3 ClearColor = {0.0f, 0.0f, 0.0f, 1.0f};
-		AndroidClearWindow(&WindowBuffer, ClearColor);
-
-		rect Rect;
-		Rect.Size = (v2){(r32)WindowBuffer.width, (r32)WindowBuffer.height};
-		Rect.Position = (v2){0.0f, 0.0f};
-		AndroidDrawRect(&WindowBuffer, Rect, OffsetX, OffsetY);
+AndroidRenderFrame(android_app * App, render_commands * Commands){
+	android_shared_data * Shared = App->userData;
+	if(Shared->RendererAvailable){
+	#if SW_RENDERER
+		ANativeWindow_Buffer WindowBuffer;
+		if(AndroidLockWindow(App->window, &WindowBuffer)){
+			framebuffer Framebuffer;
+			Framebuffer.Data = WindowBuffer.bits;
+	    	Framebuffer.Width = WindowBuffer.width;
+	    	Framebuffer.Height = WindowBuffer.height;
+	    	Framebuffer.Stride = WindowBuffer.stride;
 	
-		AndroidUnlockWindow(Window);
+			SWRenderCommands(&Framebuffer, Commands);
+			AndroidUnlockWindow(App->window);
+		}
+	#else
+		OpenGLESRenderCommands(Commands);
+	#endif
 	}
-#else
-	if(!GLESManager->IsInitialised) return;
-	v3 ClearColor = {sinf(OffsetX), cosf(OffsetY), cosf(OffsetX)+sinf(OffsetY)};
-	AndroidClearWindow(0, ClearColor);
-	if(eglSwapBuffers(GLESManager->Display, GLESManager->Surface) != EGL_TRUE){
-		Debug("SwapBuffers failed!");
-	}
-#endif
 }
 
 static void AndroidOnActivate(android_app * App){
-#if SW_RENDERER
-	AndroidInitWindow(App->window);
-#else
-	android_shared_data * Shared = App->userData;
-	opengles_manager * GLESManager = &Shared->GLESManager;
-	
-	OpenGLESInit(App->window, GLESManager);
-#endif
-	WindowInitialised = true;
+	AndroidInitRenderer(App);
 }
 
 static void AndroidOnDeactivate(android_app * App){
-	WindowInitialised = false;
-
-#if !SW_RENDERER
 	android_shared_data * Shared = App->userData;
+	Shared->RendererAvailable = false;
+#if SW_RENDERER
+#else
 	opengles_manager * GLESManager = &Shared->GLESManager;
 	
 	OpenGLESStop(GLESManager);
@@ -234,7 +193,7 @@ void android_main(android_app * App) {
 	app_dummy();
 
 	/* Initialise MEngine */
-	android_game_functions Game;
+	game_functions Game;
 	AndroidLoadGameFunctions(&Game);
 
 	game_memory GameMemory;
@@ -269,9 +228,11 @@ void android_main(android_app * App) {
 			}
 		}
 
+		render_commands RenderCommands;
+		ZeroStruct(RenderCommands);
 		if(Shared.IsEnabled){
 			Game.Update(&GameMemory);
-			AndroidRender(App->window, &Shared.GLESManager, OffsetX, OffsetY);
+			AndroidRenderFrame(App, &RenderCommands);
 		}
 		OffsetX += 0.01f;
 		OffsetY += 0.02f;

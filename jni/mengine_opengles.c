@@ -81,3 +81,34 @@ static void OpenGLESStop(opengles_manager * Manager){
 	}
 }
 
+static void OpenGLESClearWindow(v3 ClearColor){
+}
+
+static void OpenGLESRenderCommands(render_commands * Commands){
+	u8 * EntryAt;
+	u8 * EntryAtLimit = ((u8* )Commands->Entries) + 
+						Commands->CapacityInBytes;
+	for(EntryAt = (u8 *)Commands->Entries; 
+		EntryAt<EntryAtLimit;){
+		render_command_entry * Entry = (render_command_entry *) EntryAt;
+		EntryAt += sizeof(render_command_entry);
+		switch(Entry->Type){
+			case RenderCommandEntryType_DrawRect:{
+				render_command_entry_drawrect * Command = (render_command_entry_drawrect *)EntryAt;
+				EntryAt += sizeof(render_command_entry_drawrect);
+
+				/* TODO(furkan) : This command is not implemented yet */	
+			} break;
+			case RenderCommandEntryType_Clear:{
+				render_command_entry_clear * Command = (render_command_entry_clear *)EntryAt;
+				EntryAt += sizeof(render_command_entry_clear);
+				
+				v3 ClearColor = Command->Color;
+				glClearColor(ClearColor.r, ClearColor.g, ClearColor.b, 1.0f);
+				glClear(GL_COLOR_BUFFER_BIT);
+			}break;
+			InvalidDefaultCase;
+		}
+	}
+
+}

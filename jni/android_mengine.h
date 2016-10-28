@@ -1,19 +1,8 @@
 #include <android_native_app_glue.h>
 #include "mengine_platform.h"
 #include "mengine_math.h"
+#include "mengine_render.h"
 #include "mengine_opengles.h"
-
-#define Gigabytes(val) (val)*1024*1024*1024
-#define Megabytes(val) (val)*1024*1024
-#define Kilobytes(val) (val)*1024
-
-/* Standard Library Headers */
-	/*	TODO(furkan) : 
-			- Remove standard library headers and use your own version
-	*/
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
 
 
 /* Type Definitions */
@@ -23,6 +12,7 @@ typedef struct android_poll_source android_poll_source;
 
 /* Constants */
 #define InitialGameMemorySize Megabytes(8)
+
 
 /* Logger */
 #include <android/log.h>
@@ -52,17 +42,20 @@ static char __logTemp[__LogTempSize];
 		Error("Assertion failed!"); \
 		*(int *) 0 = 0; \
 	}
-
-#define ZeroStruct(Struct) \
-	memset(&(Struct), 0 , sizeof((Struct)))
+#define InvalidDefaultCase \
+	default:{ \
+		Error("An unknown case appeared in switch statement"); \
+	} break; 
 
 /* Platform structures */
 typedef struct android_shared_data{
+#if !SW_RENDERER
 	opengles_manager GLESManager;
+#endif
+
 	b8 IsRunning;
 	b8 IsEnabled;
+	b8 RendererAvailable;
 } android_shared_data;
 
-typedef struct android_game_functions{
-	game_update * Update;
-} android_game_functions;
+

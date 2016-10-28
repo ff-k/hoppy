@@ -1,3 +1,11 @@
+/* Standard Library Headers */
+	/*	TODO(furkan) : 
+		- Remove standard library headers and use your own version
+	*/
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
 /* Type Definitions */
 typedef int64_t s64;
 typedef int32_t s32;
@@ -22,3 +30,12 @@ typedef u8 b8;
 #define true 1
 #define false 0
 
+#define Gigabytes(val) (val)*1024*1024*1024
+#define Megabytes(val) (val)*1024*1024
+#define Kilobytes(val) (val)*1024
+
+/* Utils */
+#define ZeroStruct(Struct) \
+	memset(&(Struct), 0 , sizeof((Struct)))
+
+#define Minimum(A,B) ((A) < (B)) ? (A) : (B)

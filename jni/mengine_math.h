@@ -107,8 +107,9 @@ typedef struct v3i{
 
 typedef struct rect{
 	v2 Size;
-	u32 Color;
+	v3 Color;
 
-	/* NOTE(furkan) : That vector points to bottom-left of the rectangle */
+	/* NOTE(furkan) : Position vector points to 
+		bottom-left of the rectangle */
 	v2 Position;
 } rect;
