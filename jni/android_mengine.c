@@ -1,5 +1,6 @@
 #include "android_mengine.h"
 
+#include "mengine_asset.c"
 #include "mengine_opengles.c"
 #include "mengine_render.c"
 #include "hoppy.c"
@@ -25,17 +26,23 @@ AndroidLoadGameFunctions(game_functions * Functions){
 	ZeroStruct(*Functions);
 
 	/* TODO(furkan) : Load from library */
+	Functions->Init = GameInit;
 	Functions->Update = GameUpdate;
 
 	Debug("Loaded game functions");
 }
 
-static void AndroidInitGameMemory(game_memory * Memory){
+static void 
+AndroidInitGameMemory(game_memory * Memory, 
+						opengles_manager * GLESManager,
+						asset_manager * AssetManager){
 	ZeroStruct(*Memory);
 
 	Memory->Memory = AndroidMemoryAllocate(InitialGameMemorySize);
 	Memory->Used = 0;
 	Memory->Capacity = InitialGameMemorySize;
+	Memory->GLESManager = GLESManager;
+	Memory->AssetManager = AssetManager;
 
 	AndroidInitPlatformAPI(&Memory->PlatformAPI);
 	Debug("Initialised game memory");
@@ -89,13 +96,17 @@ AndroidRenderFrame(android_app * App, render_commands * Commands){
 			AndroidUnlockWindow(App->window);
 		}
 	#else
-		OpenGLESRenderCommands(Commands);
+		opengles_manager * GLESManager = &Shared->GLESManager;
+		OpenGLESRenderCommands(GLESManager, Commands);
+//		Shared->IsEnabled = false;
 	#endif
 	}
 }
 
 static void AndroidOnActivate(android_app * App){
+	android_shared_data * Shared = App->userData;
 	AndroidInitRenderer(App);
+	Shared->IsEnabled = true;
 }
 
 static void AndroidOnDeactivate(android_app * App){
@@ -107,6 +118,7 @@ static void AndroidOnDeactivate(android_app * App){
 	
 	OpenGLESStop(GLESManager);
 #endif
+	Shared->IsEnabled = false;
 }
 
 void AndroidMainCallback(android_app * App, s32 cmd){
@@ -177,7 +189,6 @@ void android_main(android_app * App) {
 	App->onAppCmd = AndroidMainCallback;
 
 	Shared.IsRunning = true;
-	Shared.IsEnabled = true;
 	
 	s32 Result;
 	s32 Events;
@@ -196,12 +207,21 @@ void android_main(android_app * App) {
 	game_functions Game;
 	AndroidLoadGameFunctions(&Game);
 
+	asset_manager AssetManager;
+	ZeroStruct(AssetManager);
+
 	game_memory GameMemory;
-	AndroidInitGameMemory(&GameMemory);
+	AndroidInitGameMemory(&GameMemory, &Shared.GLESManager, &AssetManager);
 	
+	render_commands RenderCommands;
+	ZeroStruct(RenderCommands);
+
+	RenderCommands.Entries = AndroidMemoryAllocate(InitialRenderCommandsSize);
+	RenderCommands.CapacityInBytes = InitialRenderCommandsSize;
+	
+	Debug("Engine is initialised");
+	Game.Init(&GameMemory);
 	/* Main game loop */
-	r32 OffsetX = 0;
-	r32 OffsetY = 0;
 	while (Shared.IsRunning) {
 		/* Process platfrom messages */
 		/* Process input */
@@ -210,9 +230,9 @@ void android_main(android_app * App) {
 		/* Wait for FPS */
 		/* Render Frame */
 
-
+		RenderCommands.EntryAt = 0;
 		while (1) {
-			Result = ALooper_pollAll(Shared.IsEnabled-1, 0, &Events, (void**) &Source);
+			Result = ALooper_pollAll(/*Shared.IsEnabled-1*/0, 0, &Events, (void**) &Source);
 			if(Result < 0){
 				break;
 			}
@@ -228,13 +248,13 @@ void android_main(android_app * App) {
 			}
 		}
 
-		render_commands RenderCommands;
-		ZeroStruct(RenderCommands);
 		if(Shared.IsEnabled){
-			Game.Update(&GameMemory);
+			Game.Update(&GameMemory, &RenderCommands);
 			AndroidRenderFrame(App, &RenderCommands);
+			usleep(1000);
 		}
-		OffsetX += 0.01f;
-		OffsetY += 0.02f;
+
 	}
+	Debug("Finished");
+	ANativeActivity_finish(App->activity);
 }

@@ -4,6 +4,23 @@
 #include <GLES2/gl2.h>
 #include <EGL/egl.h>
 
+#define GL_CHECKER \
+	if(glGetError() != GL_NO_ERROR){\
+		Error("OpenGL ES failed!");\
+	}
+
+#define GLESTextureCapacity 64
+#define GLESShaderCapacity 16
+
+typedef struct opengles_bitmap_shader{
+	GLuint Program;
+
+	GLint ProjectionLocation;
+	GLint TextureLocation;
+	GLint PositionLocation;
+	GLint UVLocation;
+} opengles_bitmap_shader;
+
 typedef struct opengles_manager{
 	EGLDisplay Display;
 	EGLSurface Surface;
@@ -11,6 +28,11 @@ typedef struct opengles_manager{
 
 	v2u ScreenDim;
 
+	/* TODO (furkan) : Delete them before deactivating the activity */
+	GLfloat ProjectionMatrix[4][4];
+	GLushort BitmapIndices[6];
+	opengles_bitmap_shader BitmapShader;
+	
 	b8 IsInitialised;
 } opengles_manager;
 

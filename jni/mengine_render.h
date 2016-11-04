@@ -1,12 +1,19 @@
 typedef enum {
 	RenderCommandEntryType_Unknown,
+	RenderCommandEntryType_Clear,
 	RenderCommandEntryType_DrawRect,
-	RenderCommandEntryType_Clear
+	RenderCommandEntryType_DrawBitmap
 } render_command_entry_type;
 
 typedef struct render_command_entry{
 	render_command_entry_type Type;
 } render_command_entry;
+
+typedef struct render_command_entry_drawbitmap{
+	v4 Position[4];
+	v2 UV[4];
+	asset_bitmap * Bitmap;
+} render_command_entry_drawbitmap;
 
 typedef struct render_command_entry_drawrect{
 	rect Rect;
@@ -18,9 +25,9 @@ typedef struct render_command_entry_clear{
 
 typedef struct render_commands{
 	v3 ClearColor;
-	render_command_entry * Entries;
+	u8 * Entries;
 	u32 CapacityInBytes;
-	u32 EntryCount;
+	u32 EntryAt;
 } render_commands;
 
 typedef struct framebuffer{

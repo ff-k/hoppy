@@ -1,7 +1,5 @@
 #include <android_native_app_glue.h>
 #include "mengine_platform.h"
-#include "mengine_math.h"
-#include "mengine_render.h"
 #include "mengine_opengles.h"
 
 
@@ -12,6 +10,7 @@ typedef struct android_poll_source android_poll_source;
 
 /* Constants */
 #define InitialGameMemorySize Megabytes(8)
+#define InitialRenderCommandsSize Megabytes(16)
 
 
 /* Logger */

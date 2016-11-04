@@ -1,3 +1,42 @@
+#define PushRenderCommandCase(type) \
+	Assert((Commands->CapacityInBytes -\
+	 		Commands->EntryAt +\
+			sizeof(type)) >= 0);\
+	type * Cmd = (type *)(Commands->Entries + Commands->EntryAt);\
+	*Cmd = *((type *)Params);\
+	Commands->EntryAt += sizeof(type);
+//	Debug("After command : %d, %p", Commands->EntryAt, Cmd);
+static void
+PushRenderCommand(render_commands * Commands, 
+				  render_command_entry_type Type, 
+				  void * Params){
+	/* TODO(furkan) : Make the render command buffer grow
+		when its size is not large enough to store new command
+	*/
+	Assert((Commands->CapacityInBytes -
+	 		Commands->EntryAt +
+			sizeof(render_command_entry)) >= 0);
+	render_command_entry * Entry = (render_command_entry *)(Commands->Entries + Commands->EntryAt);
+//	Debug("Before : %d, %p", Commands->EntryAt, Entry);
+	Entry->Type = Type;
+	Commands->EntryAt += sizeof(render_command_entry);
+//	Debug("After header : %d, %p", Commands->EntryAt, Entry);
+	switch(Type){
+		case RenderCommandEntryType_DrawBitmap:{
+			PushRenderCommandCase(render_command_entry_drawbitmap);
+		} break;
+		case RenderCommandEntryType_DrawRect:{
+//			Debug("Pushing a DrawRect command");
+			PushRenderCommandCase(render_command_entry_drawrect);
+		} break;
+		case RenderCommandEntryType_Clear:{
+//			Debug("Pushing a Clear command");
+			PushRenderCommandCase(render_command_entry_clear);
+		} break;
+		InvalidDefaultCase;
+	}
+}
+
 static void 
 SWRenderCommands(framebuffer * Framebuffer, render_commands * Commands){
 	u8 * EntryAt;
