@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+#include <errno.h>
 
 /* Type Definitions */
 typedef int64_t s64;

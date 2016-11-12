@@ -9,7 +9,10 @@ AssetManagerLoadBitmap(platform_api * Platform,
 	
 	TestBitmap.Data = Platform->AllocateMemory(sizeof(u32) * 16 * 16);
 	/* NOTE(furkan) : Bitmap color format that OpenGL 
-		expects is 0xAABBGGRR */
+		expects is 0xAABBGGRR.
+		Also, values below are premultiplied. Do not forget to multiply
+		R,G,B with A value while importing bitmaps 	
+	*/
 	TestBitmap.Data[0] = 0x00000000;
 	TestBitmap.Data[1] = 0x00000000;
 	TestBitmap.Data[2] = 0x00000000;

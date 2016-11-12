@@ -1,16 +1,19 @@
 #include "hoppy.h"
 
+#define MaxDistanceFromGround 512.0f
+
 u32 BitmapIndex = -1;
 MEngineInit(GameInit){
-	Debug("Initialising the game");
+	Verbose("Initialising the game");
 	asset_manager * AssetManager = Memory->AssetManager;
-	Debug("AssetManager is retrieved from game memory");
+	Verbose("AssetManager is retrieved from game memory");
 	BitmapIndex = AssetManagerLoadBitmap(&Memory->PlatformAPI, AssetManager);
-	Debug("Loaded bitmap with asset manager");
+	Verbose("Loaded bitmap with asset manager");
 	Assert(BitmapIndex != -1);
 }
 
-r32 Time = 0.0f;
+v2 LastPosition = {256.0f, 256.0f};
+
 MEngineUpdate(GameUpdate){
 	render_command_entry_clear TestClear;
 	TestClear.Color.r = 0.4f;
@@ -37,32 +40,49 @@ MEngineUpdate(GameUpdate){
 					  RenderCommandEntryType_DrawRect, 
 					  &TestDrawRect);
 
-	r32 Width = sinf(Time)*256.0f;
+	r32 Width = 32.0f;
 	if(Width < 0.0f) Width *= -1.0f;
 
-	r32 Height = sinf(Time)*256.0f;
+	r32 Height = 32.0f;
 	if(Height < 0.0f) Height *= -1.0f;
 
+	r32 Speed = 0.25f;
+	r32 DistanceFromGround = sinf(LastPosition.y+Input->DeltaTime*Speed) * MaxDistanceFromGround;
+	if(DistanceFromGround<Height/2.0f){
+		DistanceFromGround *= -1.0f;
+	}
+	LastPosition.y = DistanceFromGround;
+
 	v4 Position[4];
-	Position[0].x = 256.0f-Width/2.0f;
-	Position[0].y = 256.0f+Height/2.0f;
+	Position[0].x = LastPosition.x-Width/2.0f;
+	Position[0].y = LastPosition.y+Height/2.0f;
 	Position[0].z =  0.0f;
 	Position[0].w =  1.0f;
 
-	Position[1].x = 256.0f+Width/2.0f;
-	Position[1].y = 256.0f+Height/2.0f;
+	Position[1].x = LastPosition.x+Width/2.0f;
+	Position[1].y = LastPosition.y+Height/2.0f;
 	Position[1].z =  0.0f;
 	Position[1].w =  1.0f;
 
-	Position[2].x = 256.0f+Width/2.0f;
-	Position[2].y = 256.0f-Height/2.0f;
+	Position[2].x = LastPosition.x+Width/2.0f;
+	Position[2].y = LastPosition.y-Height/2.0f;
 	Position[2].z =  0.0f;
 	Position[2].w =  1.0f;
 
-	Position[3].x = 256.0f-Width/2.0f;
-	Position[3].y = 256.0f-Height/2.0f;
+	Position[3].x = LastPosition.x-Width/2.0f;
+	Position[3].y = LastPosition.y-Height/2.0f;
 	Position[3].z =  0.0f;
 	Position[3].w =  1.0f;
+
+	if(Input->PointerCount){
+		v2 Screen = Memory->Screen;
+		
+		if(Input->PointerCoordinates[0].x > Screen.x/2.0f){
+			LastPosition.x += 10.0f;
+		} else {
+			LastPosition.x -= 10.0f;
+		}
+	}
 
 	v2 TextureUV[4];
 	TextureUV[0].u = 0.0f;
@@ -85,5 +105,4 @@ MEngineUpdate(GameUpdate){
 	PushRenderCommand(RenderCommands,
 					  RenderCommandEntryType_DrawBitmap,
 					  &TestDrawBitmap);
-	Time += 0.1f;
 }

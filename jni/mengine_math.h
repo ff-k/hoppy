@@ -46,6 +46,35 @@ typedef struct v2i{
 	};
 } v2i;
 
+v2 V2(r32 x, r32 y){
+	v2 Result;
+	Result.x = x;
+	Result.y = y;
+	return Result;
+}
+
+v2u V2U(u32 x, u32 y){
+	v2u Result;
+	Result.x = x;
+	Result.y = y;
+	return Result;
+}
+
+v2i V2I(s32 x, s32 y){
+	v2i Result;
+	Result.x = x;
+	Result.y = y;
+	return Result;
+}
+
+v2 NormaliseV2(v2 Vector){
+	v2 Result;
+	r32 Length = sqrt(Vector.x*Vector.x + Vector.y*Vector.y);
+	Result.x = Vector.x/Length;
+	Result.y = Vector.y/Length;
+	return Result;
+}
+
 typedef struct v3{
 	union{
 		struct{
@@ -108,6 +137,30 @@ typedef struct v3i{
 		s32 E[3];
 	};
 } v3i;
+
+v3 V3(r32 x, r32 y, r32 z){
+	v3 Result;
+	Result.x = x;
+	Result.y = y;
+	Result.z = z;
+	return Result;
+}
+
+v3u V3U(u32 x, u32 y, u32 z){
+	v3u Result;
+	Result.x = x;
+	Result.y = y;
+	Result.z = z;
+	return Result;
+}
+
+v3i V3I(s32 x, s32 y, s32 z){
+	v3i Result;
+	Result.x = x;
+	Result.y = y;
+	Result.z = z;
+	return Result;
+}
 
 typedef struct v4{
 	union{
@@ -180,6 +233,33 @@ typedef struct v4i{
 		s32 E[4];
 	};
 } v4i;
+
+v4 V4(r32 x, r32 y, r32 z, r32 w){
+	v4 Result;
+	Result.x = x;
+	Result.y = y;
+	Result.z = z;
+	Result.w = w;
+	return Result;
+}
+
+v4u V4U(u32 x, u32 y, u32 z, u32 w){
+	v4u Result;
+	Result.x = x;
+	Result.y = y;
+	Result.z = z;
+	Result.w = w;
+	return Result;
+}
+
+v4i V4I(s32 x, s32 y, s32 z, s32 w){
+	v4i Result;
+	Result.x = x;
+	Result.y = y;
+	Result.z = z;
+	Result.w = w;
+	return Result;
+}
 
 typedef struct rect{
 	v2 Size;

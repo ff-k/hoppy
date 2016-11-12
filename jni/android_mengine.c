@@ -8,7 +8,7 @@
 static PlatformMemoryAlloc(AndroidMemoryAllocate){
 	void * Allocated = malloc(size);
 	if(!Allocated){
-		Warning("Memory allocation failed!");
+		Error("Memory allocation failed!");
 	}
 
 	return Allocated;
@@ -18,7 +18,7 @@ static void AndroidInitPlatformAPI(platform_api * PlatformAPI){
 	ZeroStruct(*PlatformAPI);
 	PlatformAPI->AllocateMemory = AndroidMemoryAllocate;
 
-	Debug("Initialised PlatformAPI");
+	Verbose("Initialised PlatformAPI");
 }
 
 static void 
@@ -29,7 +29,7 @@ AndroidLoadGameFunctions(game_functions * Functions){
 	Functions->Init = GameInit;
 	Functions->Update = GameUpdate;
 
-	Debug("Loaded game functions");
+	Verbose("Loaded game functions");
 }
 
 static void 
@@ -45,7 +45,7 @@ AndroidInitGameMemory(game_memory * Memory,
 	Memory->AssetManager = AssetManager;
 
 	AndroidInitPlatformAPI(&Memory->PlatformAPI);
-	Debug("Initialised game memory");
+	Verbose("Initialised game memory");
 }
 
 static b8 
@@ -53,7 +53,7 @@ AndroidLockWindow(ANativeWindow * Window,
 				  ANativeWindow_Buffer * WindowBuffer){
 	b8 Success = true;
 	if(ANativeWindow_lock(Window, WindowBuffer, 0) < 0){
-		Warning("LockWindow failed!");
+		Error("LockWindow failed!");
 		Success = false;
 	}
 	return Success;
@@ -121,65 +121,332 @@ static void AndroidOnDeactivate(android_app * App){
 	Shared->IsEnabled = false;
 }
 
+static void 
+AndroidChangeInputHandler(android_input_handler * InputHandler, 
+								AInputQueue * NewInputQueue){
+   	if(InputHandler->InputQueue){
+   		AInputQueue_detachLooper(InputHandler->InputQueue);
+   	}
+
+   	InputHandler->InputQueue = NewInputQueue;
+   	if(InputHandler->InputQueue){
+   		ALooper * Looper = 
+					ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
+   		if(Looper){
+   			Verbose("Looper is prepared");
+			
+			if(!InputHandler->InputPipeFDs[0] &&
+				!InputHandler->InputPipeFDs[1]){
+				if(!pipe(InputHandler->InputPipeFDs)){
+			   		/* NOTE(furkan) : 
+			   		[0] is the read end, [1] is the write end of the pipe 
+			   		*/
+					Verbose("Pipe file descriptors are initialised");
+				} else {
+					Error("pipe() is failed! (%s)", strerror(errno));
+	   				/* NOTE(furkan) : Not sure if pipe() has modified them.
+	   					Zeroed the fds to make them reliable.
+	   				*/
+	   				InputHandler->InputPipeFDs[0] = 0;
+   					InputHandler->InputPipeFDs[1] = 0;
+				}
+			} else if(!InputHandler->InputPipeFDs[0] || 
+						!InputHandler->InputPipeFDs[1]){
+				/* TODO(furkan) : This branch is ought to be deleted 
+					in production build. It is written just to catch
+					if InputPipeFDs are getting corrupted somewhere.
+				*/
+				Error("InputPipeFDs are in a corrupted state!");
+			}
+
+   			if(InputHandler->InputPipeFDs[0] &&
+				InputHandler->InputPipeFDs[1]){
+   				/* NOTE(furkan) : addFd returns 1 on success, 
+												-1 on fail */
+				#define LoopIdentInput 74
+				/* TODO(furkan) : Not sure if LoopIdentInput 
+									is necessary
+				*/
+   				int Success = ALooper_addFd(Looper, 
+							InputHandler->InputPipeFDs[0], 
+							LoopIdentInput, ALOOPER_EVENT_INPUT, 0, 0);
+				if(Success == 1){
+   					Verbose("File descriptor is attached to looper");
+   					AInputQueue_attachLooper(InputHandler->InputQueue, 
+										Looper, LoopIdentInput, 0, 0);
+   					Verbose("InputQueue is attached to looper");
+   				} else {
+   					Error("Looper_addFd is failed!");
+   				}
+				#undef LoopIdentInput
+   			} else {
+   			}
+   		} else {
+   			Error("Looper_prepare has failed!");
+   		}
+   	}
+}
+
 void AndroidMainCallback(android_app * App, s32 cmd){
 	switch(cmd){
-    	case APP_CMD_INPUT_CHANGED:
-			Debug("APP_CMD_INPUT_CHANGED");
-			break;
-    	case APP_CMD_INIT_WINDOW:
+    	case APP_CMD_INPUT_CHANGED:{
+			Verbose("APP_CMD_INPUT_CHANGED");
+			android_shared_data * Shared = App->userData;
+			AndroidChangeInputHandler(&Shared->InputHandler, 
+										App->inputQueue);
+		} break;
+    	case APP_CMD_INIT_WINDOW:{
+			android_shared_data * Shared = App->userData;
 			AndroidOnActivate(App);
-			Debug("APP_CMD_INIT_WINDOW");
-			break;
-    	case APP_CMD_TERM_WINDOW:
+
+			Shared->ScreenWidth = ANativeWindow_getWidth(App->window);
+			Shared->ScreenHeight = ANativeWindow_getHeight(App->window);
+
+			Verbose("APP_CMD_INIT_WINDOW");
+		} break;
+    	case APP_CMD_TERM_WINDOW:{
+			android_shared_data * Shared = App->userData;
 			AndroidOnDeactivate(App);
- 			Debug("APP_CMD_TERM_WINDOW");
-			break;
-	   	case APP_CMD_WINDOW_RESIZED:
- 			Debug("APP_CMD_WINDOW_RESIZED");
-			break;
+
+			Shared->ScreenWidth = 0;
+			Shared->ScreenHeight = 0;
+
+ 			Verbose("APP_CMD_TERM_WINDOW");
+		} break;
+	   	case APP_CMD_WINDOW_RESIZED:{
+			android_shared_data * Shared = App->userData;
+
+			Shared->ScreenWidth = ANativeWindow_getWidth(App->window);
+			Shared->ScreenHeight = ANativeWindow_getHeight(App->window);
+
+ 			Verbose("APP_CMD_WINDOW_RESIZED");
+		} break;
 	   	case APP_CMD_WINDOW_REDRAW_NEEDED:
- 			Debug("APP_CMD_WINDOW_REDRAW_NEEDED");
+ 			Verbose("APP_CMD_WINDOW_REDRAW_NEEDED");
 			break;
 	   	case APP_CMD_CONTENT_RECT_CHANGED:
- 			Debug("APP_CMD_CONTENT_RECT_CHANGED");
+ 			Verbose("APP_CMD_CONTENT_RECT_CHANGED");
 			break;
 	   	case APP_CMD_GAINED_FOCUS:
- 			Debug("APP_CMD_GAINED_FOCUS");
+ 			Verbose("APP_CMD_GAINED_FOCUS");
 			break;
 	   	case APP_CMD_LOST_FOCUS:
- 			Debug("APP_CMD_LOST_FOCUS");
+ 			Verbose("APP_CMD_LOST_FOCUS");
 			break;
 	   	case APP_CMD_CONFIG_CHANGED:
  			Debug("APP_CMD_CONFIG_CHANGED");
 			break;
 	   	case APP_CMD_LOW_MEMORY:
- 			Debug("APP_CMD_LOW_MEMORY");
+ 			Verbose("APP_CMD_LOW_MEMORY");
 			break;
 	   	case APP_CMD_START:
- 			Debug("APP_CMD_START");
+ 			Verbose("APP_CMD_START");
 			break;
 	   	case APP_CMD_RESUME:
- 			Debug("APP_CMD_RESUME");
+ 			Verbose("APP_CMD_RESUME");
 			break;
 	   	case APP_CMD_SAVE_STATE:
-			Debug("APP_CMD_SAVE_STATE");
+			Verbose("APP_CMD_SAVE_STATE");
 			break;
 		case APP_CMD_PAUSE:
-   			Debug("APP_CMD_PAUSE");
+   			Verbose("APP_CMD_PAUSE");
 			break;
 		case APP_CMD_STOP:
- 			Debug("APP_CMD_STOP");
+ 			Verbose("APP_CMD_STOP");
 			break;
    		case APP_CMD_DESTROY:
-			Debug("APP_CMD_DESTROY");
+			Verbose("APP_CMD_DESTROY");
 			break;
-		default:
-			Warning("Some commands are missing!")
-			break;
+		InvalidDefaultCase;
+	}
+}
+
+static void
+AndroidHandleInput(android_shared_data * Shared, game_input * GameInput){
+	Verbose("Handling Input");
+	AInputEvent * InputEvent = 0;
+	AInputQueue * InputQueue = Shared->InputHandler.InputQueue;
+	
+	GameInput->PointerCount = 0;
+	
+	while (InputQueue && 
+			AInputQueue_getEvent(InputQueue, &InputEvent) >= 0) {
+		if (AInputQueue_preDispatchEvent(InputQueue, InputEvent)) {
+	        continue;
+	    }
+		s32 Handled = 0;
+		switch(AInputEvent_getType(InputEvent)){
+			case AINPUT_EVENT_TYPE_KEY: {
+				Verbose("Key events are not handled");
+
+				s32 Action = AKeyEvent_getAction(InputEvent);
+				s32 KeyCode = AKeyEvent_getKeyCode(InputEvent);
+				s32 ScanCode = AKeyEvent_getScanCode(InputEvent);
+				s32 MetaState = AKeyEvent_getMetaState(InputEvent);
+				s32 RepeatCount = AKeyEvent_getRepeatCount(InputEvent);
+				switch(Action){
+					case AKEY_EVENT_ACTION_DOWN:{
+						Verbose("KeyAction_Down");
+					} break;
+				    case AKEY_EVENT_ACTION_UP:{
+						/*switch(KeyCode){
+							case AKEYCODE_BACK:{
+								Handled = 1;
+								Shared->IsEnabled = false;
+								Shared->IsRunning = false;
+							} break;
+						}
+						*/
+						Verbose("KeyAction_Up");
+					} break;
+					case AKEY_EVENT_ACTION_MULTIPLE:{
+						Verbose("KeyAction_Multiple");
+					} break;
+					InvalidDefaultCase;
+				}
+				
+				s32 Flags = AKeyEvent_getFlags(InputEvent);
+				if(Flags & AKEY_EVENT_FLAG_WOKE_HERE){
+					Verbose("KeyEventFlag_WokeHere");
+				} 
+				if(Flags & AKEY_EVENT_FLAG_SOFT_KEYBOARD){
+					Verbose("KeyEventFlag_SoftKeyboard");
+				} 
+				if(Flags & AKEY_EVENT_FLAG_KEEP_TOUCH_MODE){
+					Verbose("KeyEventFlag_KeepTouchMode");
+				} 
+				if(Flags & AKEY_EVENT_FLAG_FROM_SYSTEM){
+					Verbose("KeyEventFlag_FromSystem");
+				}
+				if(Flags & AKEY_EVENT_FLAG_EDITOR_ACTION){
+					Verbose("KeyEventFlag_EditorAction");					
+				} 
+				if(Flags & AKEY_EVENT_FLAG_CANCELED){
+					Verbose("KeyEventFlag_Canceled");					
+				}
+				if(Flags & AKEY_EVENT_FLAG_VIRTUAL_HARD_KEY){
+					Verbose("KeyEventFlag_VirtualHardKey");					
+				}
+				if(Flags & AKEY_EVENT_FLAG_LONG_PRESS){
+					Verbose("KeyEventFlag_LongPress");					
+				}
+				if(Flags & AKEY_EVENT_FLAG_CANCELED_LONG_PRESS){
+					Verbose("KeyEventFlag_CanceledLongPress");					
+				}
+			    if(Flags & AKEY_EVENT_FLAG_TRACKING){
+					Verbose("KeyEventFlag_Tracking");					
+				}
+    			if(Flags & AKEY_EVENT_FLAG_FALLBACK){
+					Verbose("KeyEventFlag_Fallback");					
+				}
+    				
+				Verbose("KeyCode %d, ScanCode : %d, MetaState : %d, RepeatCount : %d", KeyCode, ScanCode, MetaState, RepeatCount);
+			} break;
+			case AINPUT_EVENT_TYPE_MOTION: {
+				switch(AInputEvent_getSource(InputEvent)){
+					case AINPUT_SOURCE_UNKNOWN:{
+						Verbose("Motion event's source is not handled : Unkown");
+					} break; 
+				    case AINPUT_SOURCE_KEYBOARD:{
+						Verbose("Motion event's source is not handled : Keyboard");
+					} break; 
+				    case AINPUT_SOURCE_DPAD    :{
+						Verbose("Motion event's source is not handled : DPad");
+					} break; 
+					case AINPUT_SOURCE_GAMEPAD:{
+						Verbose("Motion event's source is not handled : Gamepad");
+					} break; 
+				    case AINPUT_SOURCE_TOUCHSCREEN:{
+						u8 Action = AMotionEvent_getAction(InputEvent) & AMOTION_EVENT_ACTION_MASK;
+						u8 PointerIndex = (AMotionEvent_getAction(InputEvent) & AMOTION_EVENT_ACTION_POINTER_INDEX_MASK) >> 8;
+						/* TODO(furkan) : Actually, it is  gotta be 
+							checked if PointerIndex is greater than what 
+							the engine expect and handle it properly.
+							During development, assertion is OK
+						*/
+						Assert(PointerIndex < MaxPointerCount);
+						GameInput->PointerCount = AMotionEvent_getPointerCount(InputEvent);
+						GameInput->PointerCoordinates[PointerIndex] = V2(AMotionEvent_getX(InputEvent, PointerIndex), AMotionEvent_getY(InputEvent, PointerIndex));
+						Handled = 1;
+						switch(Action){
+							case AMOTION_EVENT_ACTION_DOWN:{
+								Verbose("MotionEvent_Down by Pointer %hhu", PointerIndex);
+								GameInput->PointerAction[PointerIndex] = PointerAction_Down;
+								GameInput->PointerPressed[PointerIndex] = true;
+							} break;
+						    case AMOTION_EVENT_ACTION_UP:{
+								Verbose("MotionEvent_Up by Pointer %hhu", PointerIndex);
+								GameInput->PointerAction[PointerIndex] = PointerAction_Up;
+								GameInput->PointerPressed[PointerIndex] = false;
+							} break;
+						    case AMOTION_EVENT_ACTION_MOVE:{
+								Verbose("MotionEvent_Move by Pointer %hhu", PointerIndex);
+								GameInput->PointerAction[PointerIndex] = PointerAction_Move;
+							} break;
+						    case AMOTION_EVENT_ACTION_CANCEL:{
+								Verbose("MotionEvent_Cancel by Pointer %hhu", PointerIndex);
+							} break;
+						    case AMOTION_EVENT_ACTION_OUTSIDE:{
+								Verbose("MotionEvent_Outside by Pointer %hhu", PointerIndex);
+							} break;
+						    case AMOTION_EVENT_ACTION_POINTER_DOWN:{
+								Verbose("MotionEvent_PointerDown by Pointer %hhu", PointerIndex);
+							} break;
+						    case AMOTION_EVENT_ACTION_POINTER_UP:{
+								Verbose("MotionEvent_PointerUp by Pointer %hhu", PointerIndex);
+							} break;
+						    case AMOTION_EVENT_ACTION_HOVER_MOVE:{
+								Verbose("MotionEvent_HoverMove by Pointer %hhu", PointerIndex);
+							} break;
+						    case AMOTION_EVENT_ACTION_SCROLL:{
+								Verbose("MotionEvent_Scroll by Pointer %hhu", PointerIndex);
+							} break;
+						    case AMOTION_EVENT_ACTION_HOVER_ENTER:{
+								Verbose("MotionEvent_HoverEnter by Pointer %hhu", PointerIndex);
+							} break;
+						    case AMOTION_EVENT_ACTION_HOVER_EXIT:{
+								Verbose("MotionEvent_HoverExit by Pointer %hhu", PointerIndex);
+							} break;
+							InvalidDefaultCase;
+						}
+					} break; 
+				    case AINPUT_SOURCE_MOUSE:{
+						Verbose("Motion event's source is not handled : Mouse");
+					} break; 
+				    case AINPUT_SOURCE_STYLUS:{
+						Verbose("Motion event's source is not handled : Stylus");
+					} break; 
+				    case AINPUT_SOURCE_TRACKBALL:{
+						Verbose("Motion event's source is not handled : Trackball");
+					} break; 
+				    case AINPUT_SOURCE_TOUCHPAD:{
+						Verbose("Motion event's source is not handled : Touchpad");
+					} break; 
+				    case AINPUT_SOURCE_TOUCH_NAVIGATION:{
+						Verbose("Motion event's source is not handled : Touch navigation");
+					} break; 
+				    case AINPUT_SOURCE_JOYSTICK:{
+						Verbose("Motion event's source is not handled : Joystick");
+					} break; 
+				    case AINPUT_SOURCE_ANY:{
+						Verbose("Motion event's source is not handled : Any");
+					} break; 
+					InvalidDefaultCase;
+				}
+			} break;
+			InvalidDefaultCase;
+		}
+    	AInputQueue_finishEvent(InputQueue, InputEvent, Handled);
 	}
 }
 
 void android_main(android_app * App) {
+	Verbose("Entered android_main");
+	/* NOTE(furkan) : If you look into android_native_glue.c,
+	it seems like app_dummy() function does nothing useful.
+	But if you do not call it here, the application will fail at the
+	beginning. */
+	app_dummy();
 
 	/* Initialise android platform layer */
 	android_shared_data Shared;
@@ -187,41 +454,51 @@ void android_main(android_app * App) {
 	
 	App->userData = &Shared;
 	App->onAppCmd = AndroidMainCallback;
-
-	Shared.IsRunning = true;
 	
-	s32 Result;
-	s32 Events;
-	android_poll_source * Source;
-	
-	Debug("Internal dir : %s", App->activity->internalDataPath);
-	Debug("External dir : %s", App->activity->externalDataPath);
+	/*
+	Verbose("Internal dir : %s", App->activity->internalDataPath);
+	Verbose("External dir : %s", App->activity->externalDataPath);
+	*/
 
-	/* NOTE(furkan) : If you look into android_native_glue.c,
-	it seems like app_dummy() function does nothing useful.
-	But if you do not call it here, the application will fail at the
-	beginning. */
-	app_dummy();
-
-	/* Initialise MEngine */
+	/* Initialise MEngine Functions */
 	game_functions Game;
 	AndroidLoadGameFunctions(&Game);
 
+	game_input GameInput;
+
+	/* Initialise Asset Manager */
 	asset_manager AssetManager;
 	ZeroStruct(AssetManager);
 
+	/* Initialise Game Memory */
 	game_memory GameMemory;
 	AndroidInitGameMemory(&GameMemory, &Shared.GLESManager, &AssetManager);
-	
+	/* Initialise Render Commands */
 	render_commands RenderCommands;
 	ZeroStruct(RenderCommands);
 
 	RenderCommands.Entries = AndroidMemoryAllocate(InitialRenderCommandsSize);
 	RenderCommands.CapacityInBytes = InitialRenderCommandsSize;
-	
-	Debug("Engine is initialised");
+
+	/* Initialise Timer */
+	timer Timer;
+	Timer.LastCounter = GetCurrentTime();
+	Timer.Frequency = GetProcessorFrequency();
+	r32 TimeAccumulator = 0.0f;
+	/* TODO(furkan) : Detect screen refresh rate and calculate 
+		GameFrameMiliseconds using that */
+	r32 GameFrameMiliseconds = 1/60.0f;
+
+	Verbose("Engine is initialised");
+
 	Game.Init(&GameMemory);
+	
 	/* Main game loop */
+	s32 Ident;
+	s32 Events;
+	android_poll_source * Source;
+	
+	Shared.IsRunning = true;
 	while (Shared.IsRunning) {
 		/* Process platfrom messages */
 		/* Process input */
@@ -229,13 +506,16 @@ void android_main(android_app * App) {
 		/* Audio Update */
 		/* Wait for FPS */
 		/* Render Frame */
-
 		RenderCommands.EntryAt = 0;
-		while (1) {
-			Result = ALooper_pollAll(/*Shared.IsEnabled-1*/0, 0, &Events, (void**) &Source);
-			if(Result < 0){
+		GameInput.PointerCount = GameInput.PointerPressed[0] ? 1 : 0;
+		
+		while (Shared.IsRunning) {
+			Ident = ALooper_pollAll(Shared.IsEnabled-1, 0, &Events, (void**) &Source);	
+			if(Ident < 0){
 				break;
 			}
+
+			AndroidHandleInput(&Shared, &GameInput);
 
 			if (Source) {
 				Source->process(App, Source);
@@ -247,14 +527,21 @@ void android_main(android_app * App) {
 				break;
 			}
 		}
-
-		if(Shared.IsEnabled){
-			Game.Update(&GameMemory, &RenderCommands);
+	
+		u64 CurrentTime = GetCurrentTime();
+		TimeAccumulator += (r32)(((r64)(CurrentTime-Timer.LastCounter))/((r64)Timer.Frequency));
+		while((Shared.IsEnabled && Shared.RendererAvailable) &&
+				TimeAccumulator >= GameFrameMiliseconds){
+			GameMemory.Screen = V2((float) Shared.ScreenWidth, 
+									(float) Shared.ScreenHeight);
+			GameInput.DeltaTime = GameFrameMiliseconds;
+			Game.Update(&GameMemory, &RenderCommands, &GameInput);
 			AndroidRenderFrame(App, &RenderCommands);
-			usleep(1000);
-		}
 
+			TimeAccumulator -= GameFrameMiliseconds;
+		}
+		Timer.LastCounter = CurrentTime;
 	}
-	Debug("Finished");
+	Verbose("Finished");
 	ANativeActivity_finish(App->activity);
 }

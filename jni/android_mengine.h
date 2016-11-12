@@ -1,12 +1,12 @@
 #include <android_native_app_glue.h>
+#include <android/input.h>
+
 #include "mengine_platform.h"
 #include "mengine_opengles.h"
-
 
 /* Type Definitions */
 typedef struct android_app android_app;
 typedef struct android_poll_source android_poll_source;
-
 
 /* Constants */
 #define InitialGameMemorySize Megabytes(8)
@@ -30,6 +30,7 @@ static char __logTemp[__LogTempSize];
 		} \
 	}
 
+#define Verbose(...) __log(ANDROID_LOG_VERBOSE, __VA_ARGS__)
 #define Debug(...) __log(ANDROID_LOG_DEBUG, __VA_ARGS__)
 #define Error(...) __log(ANDROID_LOG_ERROR, __VA_ARGS__)
 #define Warning(...) __log(ANDROID_LOG_WARN, __VA_ARGS__)
@@ -47,10 +48,20 @@ static char __logTemp[__LogTempSize];
 	} break; 
 
 /* Platform structures */
+typedef struct android_input_handler{
+	AInputQueue * InputQueue;
+	int InputPipeFDs[2];
+} android_input_handler;
+
 typedef struct android_shared_data{
 #if !SW_RENDERER
 	opengles_manager GLESManager;
 #endif
+
+	android_input_handler InputHandler;
+
+	s32 ScreenWidth;
+	s32 ScreenHeight;
 
 	b8 IsRunning;
 	b8 IsEnabled;

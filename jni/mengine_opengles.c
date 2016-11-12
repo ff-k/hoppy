@@ -171,7 +171,7 @@ OpenGLESInit(ANativeWindow * Window, opengles_manager * Manager){
 								OpenGLESInitShaders(Manager);
 
 								Manager->IsInitialised = true;
-								Debug("OpenGL ES initialised!");
+								Verbose("OpenGL ES initialised!");
 
 							}
 						}
