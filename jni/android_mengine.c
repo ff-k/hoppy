@@ -167,7 +167,7 @@ AndroidChangeInputHandler(android_input_handler * InputHandler,
 				/* TODO(furkan) : Not sure if LoopIdentInput 
 									is necessary
 				*/
-   				int Success = ALooper_addFd(Looper, 
+   				s32 Success = ALooper_addFd(Looper, 
 							InputHandler->InputPipeFDs[0], 
 							LoopIdentInput, ALOOPER_EVENT_INPUT, 0, 0);
 				if(Success == 1){
@@ -487,7 +487,8 @@ void android_main(android_app * App) {
 	r32 TimeAccumulator = 0.0f;
 	/* TODO(furkan) : Detect screen refresh rate and calculate 
 		GameFrameMiliseconds using that */
-	r32 GameFrameMiliseconds = 1/60.0f;
+	r32 GameFrameMiliseconds = 1000/60.0f;
+	Verbose("GameFrameMiliseconds = %f", GameFrameMiliseconds);
 
 	Verbose("Engine is initialised");
 
@@ -529,16 +530,25 @@ void android_main(android_app * App) {
 		}
 	
 		u64 CurrentTime = GetCurrentTime();
-		TimeAccumulator += (r32)(((r64)(CurrentTime-Timer.LastCounter))/((r64)Timer.Frequency));
-		while((Shared.IsEnabled && Shared.RendererAvailable) &&
-				TimeAccumulator >= GameFrameMiliseconds){
-			GameMemory.Screen = V2((float) Shared.ScreenWidth, 
-									(float) Shared.ScreenHeight);
-			GameInput.DeltaTime = GameFrameMiliseconds;
-			Game.Update(&GameMemory, &RenderCommands, &GameInput);
-			AndroidRenderFrame(App, &RenderCommands);
+		r32 TimeDifference = (r32)(((r64)(CurrentTime-Timer.LastCounter))/((r64)Timer.Frequency));
+		TimeDifference *= 1000;
+		TimeAccumulator += TimeDifference;
+		if(Shared.IsEnabled && Shared.RendererAvailable	){
+			GameMemory.Screen = V2((r32) Shared.ScreenWidth, 
+									(r32) Shared.ScreenHeight);
+			
+			s32 i=0;
+			Debug("Frame time %f miliseconds", TimeDifference);
 
-			TimeAccumulator -= GameFrameMiliseconds;
+			while(TimeAccumulator >= GameFrameMiliseconds){
+				Debug("%d. Accumulator %f", i, TimeAccumulator);
+				GameInput.DeltaTime = GameFrameMiliseconds;
+				Game.Update(&GameMemory, &RenderCommands, &GameInput);
+				TimeAccumulator -= GameFrameMiliseconds;
+				i++;
+			}
+
+			AndroidRenderFrame(App, &RenderCommands);
 		}
 		Timer.LastCounter = CurrentTime;
 	}

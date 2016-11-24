@@ -50,7 +50,7 @@ static char __logTemp[__LogTempSize];
 /* Platform structures */
 typedef struct android_input_handler{
 	AInputQueue * InputQueue;
-	int InputPipeFDs[2];
+	s32 InputPipeFDs[2];
 } android_input_handler;
 
 typedef struct android_shared_data{

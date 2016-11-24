@@ -4,6 +4,12 @@ AssetManagerLoadBitmap(platform_api * Platform,
 	u32 BitmapIndex = -1;
 
 	asset_bitmap TestBitmap = {0, 0, 0};
+	
+	TestBitmap.UV[0] = V2(0.0f, 1.0f);
+	TestBitmap.UV[1] = V2(1.0f, 1.0f);
+	TestBitmap.UV[2] = V2(1.0f, 0.0f);
+	TestBitmap.UV[3] = V2(0.0f, 0.0f);
+
 	TestBitmap.Width = 16;
 	TestBitmap.Height = 16;
 	

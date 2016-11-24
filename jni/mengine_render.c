@@ -82,9 +82,9 @@ SWRenderCommands(framebuffer * Framebuffer, render_commands * Commands){
 						*/
 						Row[ColAt] = //((u32)Rect.Color.a << 24) |
 													(255 << 24) |
-									 ((u32)Rect.Color.b << 16) | 
-									 ((u32)Rect.Color.g << 8) | 
-									  (u32)Rect.Color.r;
+									 ((u32)Command->Color.b << 16) | 
+									 ((u32)Command->Color.g << 8) | 
+									  (u32)Command->Color.r;
 					}
 
 					Row -= Framebuffer->Stride;

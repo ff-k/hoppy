@@ -1,6 +1,8 @@
 #include "mengine_opengles.h"
 
-char * TestVertexShader ="\
+#define PixelsPerUnit 100.0f
+
+char * BitmapVertexShader ="\
 	attribute vec4 aPosition;\
 	attribute vec2 aTexture;\
 	\
@@ -12,7 +14,7 @@ char * TestVertexShader ="\
 		gl_Position = uProjection * aPosition;\
 	}";
 
-char * TestFragmentShader ="\
+char * BitmapFragmentShader ="\
 	precision mediump float;\
 	\
 	varying vec2 vTexture;\
@@ -20,6 +22,21 @@ char * TestFragmentShader ="\
 	\
 	void main() {\
 		gl_FragColor = texture2D(uTexture, vTexture);\
+	}";
+
+char * PolygonVertexShader ="\
+	attribute vec3 aPosition;\
+	uniform mat4 uProjection;\
+	\
+	void main(){\
+		gl_Position = uProjection * vec4(aPosition, 1.0);\
+	}";
+
+char * PolygonFragmentShader ="\
+	uniform vec4 uColor;\
+	\
+	void main(){\
+		gl_FragColor = uColor;\
 	}";
 
 static GLuint
@@ -59,6 +76,7 @@ OpenGLESLoadShader(opengles_manager * Manager,
 					const char * VertexShaderSource, 
 					const char * FragmentShaderSource){
 	GLint Result;
+	GLchar ShaderResultLog[256];
 	GLuint VertexShader, FragmentShader, ShaderProgram;
 
 	VertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -67,7 +85,10 @@ OpenGLESLoadShader(opengles_manager * Manager,
 	glGetShaderiv(VertexShader, GL_COMPILE_STATUS, &Result);
 	if (Result == GL_FALSE) {
 		Error("Vertex shader compilation failed!");
+		glGetShaderInfoLog(VertexShader, sizeof(ShaderResultLog), 0, ShaderResultLog);
+		Error("%s", ShaderResultLog);
 	}
+	
 
 	FragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(FragmentShader, 1, &FragmentShaderSource, 0);
@@ -75,6 +96,8 @@ OpenGLESLoadShader(opengles_manager * Manager,
 	glGetShaderiv(FragmentShader, GL_COMPILE_STATUS, &Result);
 	if (Result == GL_FALSE) {
 		Error("Fragment shader compilation failed!");
+		glGetShaderInfoLog(FragmentShader, sizeof(ShaderResultLog), 0, ShaderResultLog);
+		Error("%s", ShaderResultLog);
 	}
 
 	ShaderProgram = glCreateProgram();
@@ -83,12 +106,16 @@ OpenGLESLoadShader(opengles_manager * Manager,
 	glLinkProgram(ShaderProgram);
 	glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &Result);
 
+	/* TODO(furkan) : glValidateShader() */
+
 	glDetachShader(ShaderProgram, VertexShader);
 	glDeleteShader(VertexShader);
 	glDetachShader(ShaderProgram, FragmentShader);
 	glDeleteShader(FragmentShader);
 	if (Result == GL_FALSE){
 		Error("Shader program could not been linked!");
+		glGetProgramInfoLog(ShaderProgram, sizeof(ShaderResultLog), 0, ShaderResultLog);
+		Error("%s", ShaderResultLog);
 		ShaderProgram = -1;
 	}
 
@@ -98,13 +125,25 @@ OpenGLESLoadShader(opengles_manager * Manager,
 static void
 OpenGLESInitShaders(opengles_manager * Manager){
 	opengles_bitmap_shader * BitmapShader = &Manager->BitmapShader;
-	BitmapShader->Program = OpenGLESLoadShader(Manager, TestVertexShader, TestFragmentShader);
+	BitmapShader->Program = OpenGLESLoadShader(Manager, 
+												BitmapVertexShader, 
+												BitmapFragmentShader);
 	Assert(BitmapShader->Program != -1);
 
 	BitmapShader->PositionLocation = glGetAttribLocation(BitmapShader->Program, "aPosition");
 	BitmapShader->UVLocation = glGetAttribLocation(BitmapShader->Program, "aTexture");
 	BitmapShader->ProjectionLocation = glGetUniformLocation(BitmapShader->Program,"uProjection");
 	BitmapShader->TextureLocation = glGetUniformLocation(BitmapShader->Program, "uTexture");
+
+	opengles_polygon_shader * PolygonShader = &Manager->PolygonShader;
+	PolygonShader->Program = OpenGLESLoadShader(Manager,
+												PolygonVertexShader,
+												PolygonFragmentShader);
+	Assert(PolygonShader->Program != -1);
+
+	PolygonShader->PositionLocation = glGetAttribLocation(PolygonShader->Program, "aPosition");
+	PolygonShader->ColorLocation = glGetUniformLocation(PolygonShader->Program, "uColor");
+	PolygonShader->ProjectionLocation = glGetUniformLocation(PolygonShader->Program,"uProjection");
 }
 
 static void 
@@ -149,26 +188,28 @@ OpenGLESInit(ANativeWindow * Window, opengles_manager * Manager){
 							Success &= eglQuerySurface(Manager->Display, Manager->Surface, EGL_HEIGHT, &Manager->ScreenDim.Height);
 							Success &= (Manager->ScreenDim.Width > 0) && (Manager->ScreenDim.Height > 0);
 							if (Success){
-								glViewport(0, 0, Manager->ScreenDim.Width, Manager->ScreenDim.Height);
+								glViewport(0, 0, 1280/*Manager->ScreenDim.Width*/, Manager->ScreenDim.Height);
 								glDisable(GL_DEPTH_TEST);
 								
-								memset(Manager->ProjectionMatrix[0],
+								memset(Manager->ProjectionMatrix,
 									0, sizeof(Manager->ProjectionMatrix));
-								Manager->ProjectionMatrix[0][0] = 2.0f / (GLfloat)Manager->ScreenDim.Width;
-								Manager->ProjectionMatrix[1][1] = 2.0f / (GLfloat)Manager->ScreenDim.Height;
+								Manager->ProjectionMatrix[0][0] = (PixelsPerUnit * 2.0f) / 1280.0f;//(GLfloat)Manager->ScreenDim.Width;
+								Manager->ProjectionMatrix[1][1] = (PixelsPerUnit * 2.0f) / (GLfloat)Manager->ScreenDim.Height;
 								Manager->ProjectionMatrix[2][2] = -1.0f;
 								Manager->ProjectionMatrix[3][0] = -1.0f;
 								Manager->ProjectionMatrix[3][1] = -1.0f;
 								Manager->ProjectionMatrix[3][3] =  1.0f;
 				
-								Manager->BitmapIndices[0] = 0;
-								Manager->BitmapIndices[1] = 1;
-								Manager->BitmapIndices[2] = 2;
-								Manager->BitmapIndices[3] = 2;
-								Manager->BitmapIndices[4] = 3;
-								Manager->BitmapIndices[5] = 0;
+								Manager->RectIndices[0] = 0;
+								Manager->RectIndices[1] = 1;
+								Manager->RectIndices[2] = 2;
+								Manager->RectIndices[3] = 2;
+								Manager->RectIndices[4] = 3;
+								Manager->RectIndices[5] = 0;
 
 								OpenGLESInitShaders(Manager);
+
+								eglSwapInterval(Manager->Display, 1);
 
 								Manager->IsInitialised = true;
 								Verbose("OpenGL ES initialised!");
@@ -207,7 +248,7 @@ OpenGLESRenderCommands(opengles_manager * Manager,
 						render_commands * Commands){
 	u8 * EntryAt = (u8 *)Commands->Entries;
 	u8 * EntryAtLimit = (u8 *)(Commands->Entries) + Commands->EntryAt;
-	int Count = 0;
+	s32 Count = 0;
 	for(EntryAt = (u8 *)Commands->Entries; 
 		EntryAt<EntryAtLimit;){
 //		Error("EntryAt : %p, EntryAtLimit : %p", EntryAt, EntryAtLimit);
@@ -219,7 +260,31 @@ OpenGLESRenderCommands(opengles_manager * Manager,
 			case RenderCommandEntryType_DrawBitmap:{
 				render_command_entry_drawbitmap * Command = (render_command_entry_drawbitmap *)EntryAt;
 				EntryAt += sizeof(render_command_entry_drawbitmap);
-				
+		
+				r32 Width = Command->Size.x;
+				r32 Height = Command->Size.y;
+
+				v4 Position[4];
+				Position[0].x = Command->Position.x-Width/2.0f;
+				Position[0].y = Command->Position.y+Height/2.0f;
+				Position[0].z =  0.0f;
+				Position[0].w =  1.0f;
+			
+				Position[1].x = Command->Position.x+Width/2.0f;
+				Position[1].y = Command->Position.y+Height/2.0f;
+				Position[1].z =  0.0f;
+				Position[1].w =  1.0f;
+			
+				Position[2].x = Command->Position.x+Width/2.0f;
+				Position[2].y = Command->Position.y-Height/2.0f;
+				Position[2].z =  0.0f;
+				Position[2].w =  1.0f;
+			
+				Position[3].x = Command->Position.x-Width/2.0f;
+				Position[3].y = Command->Position.y-Height/2.0f;
+				Position[3].z =  0.0f;
+				Position[3].w =  1.0f;
+
 				opengles_bitmap_shader * Shader = &Manager->BitmapShader;
 
 				glUseProgram(Shader->Program);
@@ -232,12 +297,12 @@ OpenGLESRenderCommands(opengles_manager * Manager,
 				glEnableVertexAttribArray(Shader->PositionLocation);
 				GL_CHECKER	
 				glVertexAttribPointer(Shader->PositionLocation, 4,
-					GL_FLOAT, GL_FALSE, sizeof(v4), Command->Position);
+					GL_FLOAT, GL_FALSE, sizeof(v4), Position);
 				GL_CHECKER
 				glEnableVertexAttribArray(Shader->UVLocation);
 				GL_CHECKER	
 				glVertexAttribPointer(Shader->UVLocation, 2,
-					GL_FLOAT, GL_FALSE, sizeof(v2), Command->UV);
+					GL_FLOAT, GL_FALSE, sizeof(v2), Command->Bitmap->UV);
 				GL_CHECKER
 				glEnable(GL_BLEND);
 				GL_CHECKER	
@@ -248,7 +313,7 @@ OpenGLESRenderCommands(opengles_manager * Manager,
 				GL_CHECKER	
 				glBindTexture(GL_TEXTURE_2D, Texture);
 				GL_CHECKER
-				glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, Manager->BitmapIndices);
+				glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, Manager->RectIndices);
 				GL_CHECKER
 				glUseProgram(0);
 				GL_CHECKER	
@@ -265,8 +330,53 @@ OpenGLESRenderCommands(opengles_manager * Manager,
 //				Error("Rendering DrawRect command");
 				render_command_entry_drawrect * Command = (render_command_entry_drawrect *)EntryAt;
 				EntryAt += sizeof(render_command_entry_drawrect);
+		
+				r32 Width = Command->Rect.Size.x;
+				r32 Height = Command->Rect.Size.y;
 
-				/* TODO(furkan) : This command is not implemented yet */	
+				v4 Position[4];
+				Position[0].x = Command->Rect.Position.x-Width/2.0f;
+				Position[0].y = Command->Rect.Position.y+Height/2.0f;
+				Position[0].z =  0.0f;
+				Position[0].w =  1.0f;
+			
+				Position[1].x = Command->Rect.Position.x+Width/2.0f;
+				Position[1].y = Command->Rect.Position.y+Height/2.0f;
+				Position[1].z =  0.0f;
+				Position[1].w =  1.0f;
+			
+				Position[2].x = Command->Rect.Position.x+Width/2.0f;
+				Position[2].y = Command->Rect.Position.y-Height/2.0f;
+				Position[2].z =  0.0f;
+				Position[2].w =  1.0f;
+			
+				Position[3].x = Command->Rect.Position.x-Width/2.0f;
+				Position[3].y = Command->Rect.Position.y-Height/2.0f;
+				Position[3].z =  0.0f;
+				Position[3].w =  1.0f;
+
+				opengles_polygon_shader * Shader = &Manager->PolygonShader;
+
+				glUseProgram(Shader->Program);
+				GL_CHECKER
+				glUniformMatrix4fv(Shader->ProjectionLocation, 1, 
+					GL_FALSE, (GLfloat *)Manager->ProjectionMatrix);
+
+				glUniform4fv(Shader->ColorLocation, 1, (GLfloat *)&Command->Color);
+
+				glEnableVertexAttribArray(Shader->PositionLocation);
+				GL_CHECKER
+				
+				glVertexAttribPointer(Shader->PositionLocation, 4, 
+					GL_FLOAT, GL_FALSE, sizeof(v4), (GLfloat *)Position);
+				GL_CHECKER
+				glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, Manager->RectIndices);
+				GL_CHECKER
+
+				glUseProgram(0);
+				GL_CHECKER
+				glDisableVertexAttribArray(Shader->PositionLocation);
+				GL_CHECKER
 			} break;
 			case RenderCommandEntryType_Clear:{
 //				Error("Rendering Clear command");

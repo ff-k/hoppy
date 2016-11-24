@@ -21,6 +21,14 @@ typedef struct opengles_bitmap_shader{
 	GLint UVLocation;
 } opengles_bitmap_shader;
 
+typedef struct opengles_polygon_shader{
+	GLuint Program;
+
+	GLint ProjectionLocation;
+	GLint PositionLocation;
+	GLint ColorLocation;
+} opengles_polygon_shader;
+
 typedef struct opengles_manager{
 	EGLDisplay Display;
 	EGLSurface Surface;
@@ -30,9 +38,9 @@ typedef struct opengles_manager{
 
 	/* TODO (furkan) : Delete them before deactivating the activity */
 	GLfloat ProjectionMatrix[4][4];
-	GLushort BitmapIndices[6];
+	GLushort RectIndices[6];
 	opengles_bitmap_shader BitmapShader;
-	
+	opengles_polygon_shader PolygonShader;
 	b8 IsInitialised;
 } opengles_manager;
 

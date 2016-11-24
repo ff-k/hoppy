@@ -1,6 +1,6 @@
 #include "hoppy.h"
 
-#define MaxDistanceFromGround 512.0f
+#define MaxDistanceFromGround 5.12f
 
 u32 BitmapIndex = -1;
 MEngineInit(GameInit){
@@ -12,94 +12,70 @@ MEngineInit(GameInit){
 	Assert(BitmapIndex != -1);
 }
 
-v2 LastPosition = {256.0f, 256.0f};
+v2 LastPosition = {2.56f, 2.56f};
 
 MEngineUpdate(GameUpdate){
 	render_command_entry_clear TestClear;
-	TestClear.Color.r = 0.4f;
-	TestClear.Color.g = 0.2f;
-	TestClear.Color.b = 0.8f;
+	TestClear.Color.r = 1.0f;
+	TestClear.Color.g = 0.0f;
+	TestClear.Color.b = 1.0f;
 
 	PushRenderCommand(RenderCommands, 
 					  RenderCommandEntryType_Clear, 
 					  &TestClear);	
 
 	render_command_entry_drawrect TestDrawRect;
-	TestDrawRect.Rect.Size.x = 128;
-	TestDrawRect.Rect.Size.y = 64;
+	TestDrawRect.Rect.Size = V2(12.8f, 0.64f);
+	TestDrawRect.Rect.Position = V2(Memory->Screen.x/200.0f, 
+									0.32f);
+	TestDrawRect.Color = V4(0.0f, 1.0f, 0.0f, 1.0f);
 
-	TestDrawRect.Rect.Color.r = 0.4f;
-	TestDrawRect.Rect.Color.g = 1.0f;
-	TestDrawRect.Rect.Color.b = 0.1f;
-
-	TestDrawRect.Rect.Position.x = 32;
-	TestDrawRect.Rect.Position.y = 256;
-
-	rect TestRect;
 	PushRenderCommand(RenderCommands, 
 					  RenderCommandEntryType_DrawRect, 
 					  &TestDrawRect);
 
-	r32 Width = 32.0f;
-	if(Width < 0.0f) Width *= -1.0f;
+	static r32 SecondRectPosition = 0.0f;
+	TestDrawRect.Rect.Size = V2(7.2f, 7.2f);
+	TestDrawRect.Rect.Position = V2(Memory->Screen.x/200.0f+6.4f*sinf(SecondRectPosition)*Input->DeltaTime*0.01f, Memory->Screen.y/200.0f);
+	TestDrawRect.Color = V4(0.0f, 0.0f, 1.0f, 1.0f);
 
-	r32 Height = 32.0f;
-	if(Height < 0.0f) Height *= -1.0f;
+	PushRenderCommand(RenderCommands, 
+					  RenderCommandEntryType_DrawRect, 
+					  &TestDrawRect);
+	SecondRectPosition += 0.1f;
 
-	r32 Speed = 0.25f;
-	r32 DistanceFromGround = sinf(LastPosition.y+Input->DeltaTime*Speed) * MaxDistanceFromGround;
-	if(DistanceFromGround<Height/2.0f){
-		DistanceFromGround *= -1.0f;
-	}
+	r32 Width = 0.32f;
+	r32 Height = 0.32f;
+	r32 Speed = 0.00025f;
+	static r32 DistanceFactor = 0.0f;
+	r32 DistanceFromGround = sinf(DistanceFactor) * MaxDistanceFromGround;
+	DistanceFactor += Speed*Input->DeltaTime;
 	LastPosition.y = DistanceFromGround;
-
-	v4 Position[4];
-	Position[0].x = LastPosition.x-Width/2.0f;
-	Position[0].y = LastPosition.y+Height/2.0f;
-	Position[0].z =  0.0f;
-	Position[0].w =  1.0f;
-
-	Position[1].x = LastPosition.x+Width/2.0f;
-	Position[1].y = LastPosition.y+Height/2.0f;
-	Position[1].z =  0.0f;
-	Position[1].w =  1.0f;
-
-	Position[2].x = LastPosition.x+Width/2.0f;
-	Position[2].y = LastPosition.y-Height/2.0f;
-	Position[2].z =  0.0f;
-	Position[2].w =  1.0f;
-
-	Position[3].x = LastPosition.x-Width/2.0f;
-	Position[3].y = LastPosition.y-Height/2.0f;
-	Position[3].z =  0.0f;
-	Position[3].w =  1.0f;
-
+	if(DistanceFromGround<0.0f){
+		LastPosition.y *= -1.0f;
+	}
+	LastPosition.y += 0.8f;
+	v2 Screen = Memory->Screen;
 	if(Input->PointerCount){
-		v2 Screen = Memory->Screen;
-		
+	
 		if(Input->PointerCoordinates[0].x > Screen.x/2.0f){
-			LastPosition.x += 10.0f;
+			LastPosition.x += 0.1f;
 		} else {
-			LastPosition.x -= 10.0f;
+			LastPosition.x -= 0.1f;
 		}
 	}
+#define MovementLimitLeft (Width/2.0f)
+#define MovementLimitRight (Screen.x/100.0f-Width/2.0f)
 
-	v2 TextureUV[4];
-	TextureUV[0].u = 0.0f;
-	TextureUV[0].v = 1.0f;
-
-	TextureUV[1].u = 1.0f;
-	TextureUV[1].v = 1.0f;
-
-	TextureUV[2].u = 1.0f;
-	TextureUV[2].v = 0.0f;
-
-	TextureUV[3].u = 0.0f;
-	TextureUV[3].v = 0.0f;
+	if(LastPosition.x < MovementLimitLeft){
+		LastPosition.x = MovementLimitLeft;
+	} else if(LastPosition.x > MovementLimitRight){
+		LastPosition.x = MovementLimitRight;
+	}
 
 	render_command_entry_drawbitmap TestDrawBitmap;
-	memcpy(TestDrawBitmap.Position, Position, sizeof(Position));
-	memcpy(TestDrawBitmap.UV, TextureUV, sizeof(TextureUV));
+	TestDrawBitmap.Position = LastPosition;
+	TestDrawBitmap.Size = V2(Width, Height);
 	TestDrawBitmap.Bitmap = Memory->AssetManager->Bitmaps + BitmapIndex;
 
 	PushRenderCommand(RenderCommands,

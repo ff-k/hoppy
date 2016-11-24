@@ -263,7 +263,6 @@ v4i V4I(s32 x, s32 y, s32 z, s32 w){
 
 typedef struct rect{
 	v2 Size;
-	v3 Color;
 
 	/* NOTE(furkan) : Position vector points to 
 		bottom-left of the rectangle */

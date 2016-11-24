@@ -10,13 +10,14 @@ typedef struct render_command_entry{
 } render_command_entry;
 
 typedef struct render_command_entry_drawbitmap{
-	v4 Position[4];
-	v2 UV[4];
+	v2 Position;
+	v2 Size;
 	asset_bitmap * Bitmap;
 } render_command_entry_drawbitmap;
 
 typedef struct render_command_entry_drawrect{
 	rect Rect;
+	v4 Color;
 } render_command_entry_drawrect;
 
 typedef struct render_command_entry_clear{
