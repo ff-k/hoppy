@@ -12,6 +12,8 @@
 #define GLESTextureCapacity 64
 #define GLESShaderCapacity 16
 
+#define PixelsPerUnit 100.0f
+
 typedef struct opengles_bitmap_shader{
 	GLuint Program;
 
@@ -36,7 +38,6 @@ typedef struct opengles_manager{
 
 	v2u ScreenDim;
 
-	/* TODO (furkan) : Delete them before deactivating the activity */
 	GLfloat ProjectionMatrix[4][4];
 	GLushort RectIndices[6];
 	opengles_bitmap_shader BitmapShader;

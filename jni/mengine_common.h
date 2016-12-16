@@ -4,6 +4,8 @@
 	*/
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
@@ -40,4 +42,36 @@ typedef u8 b8;
 #define ZeroStruct(Struct) \
 	memset(&(Struct), 0 , sizeof((Struct)))
 
+#ifdef __unix__
+#include <sys/types.h>
+#define GetThreadID() gettid()
+#else
+#error GetThreadID is not defined!
+#endif
+
+#define Maximum(A,B) ((A) > (B)) ? (A) : (B)
 #define Minimum(A,B) ((A) < (B)) ? (A) : (B)
+
+/* Stack Trace Printer */
+#define MENGINE_DEBUG 1
+#define StackTraceCapacity 256
+#define StackTraceFunctionCapacity 128
+char StackTrace[StackTraceCapacity][StackTraceFunctionCapacity];
+int StackTraceCount = 0;
+int __StackTraceLine = 0;
+#define UpdateStackTraceLine __StackTraceLine = __LINE__
+
+#define BeginStackTraceBlock \
+	strncpy(StackTrace[StackTraceCount++], __FUNCTION__, StackTraceFunctionCapacity)
+
+#define EndStackTraceBlock \
+	StackTraceCount--
+
+#define PrintStackTrace \
+	{ \
+		int StackIndex; \
+		for(StackIndex=0; StackIndex<StackTraceCount; StackIndex++){ \
+			Error("%s (Thread : %d)", StackTrace[StackIndex], GetThreadID()); \
+		} \
+		Error("Line : %d", __StackTraceLine)\
+	}

@@ -10,6 +10,7 @@ static void
 PushRenderCommand(render_commands * Commands, 
 				  render_command_entry_type Type, 
 				  void * Params){
+	BeginStackTraceBlock;
 	/* TODO(furkan) : Make the render command buffer grow
 		when its size is not large enough to store new command
 	*/
@@ -35,10 +36,59 @@ PushRenderCommand(render_commands * Commands,
 		} break;
 		InvalidDefaultCase;
 	}
+	EndStackTraceBlock;
+}
+
+static void
+ExtractRenderCommands(render_commands * RenderCommands, 
+						entity * EntitySentinel,
+						asset_manager * AssetManager){
+	BeginStackTraceBlock;
+	/* NOTE(furkan) : Clear screen before rendering frames*/
+	render_command_entry_clear ClearCommand;
+	ClearCommand.Color.r = 0.8f;
+	ClearCommand.Color.g = 0.0f;
+	ClearCommand.Color.b = 0.6f;
+
+	PushRenderCommand(RenderCommands, 
+					  RenderCommandEntryType_Clear, 
+					  &ClearCommand);	
+
+	/*	TODO(furkan) : Introduce sorting order and 
+		sort render commands accordingly */
+
+	entity * Entity = EntitySentinel->Prev;
+	while(Entity != EntitySentinel){
+		switch(Entity->Type){
+			case EntityType_Background:
+			case EntityType_Enemy:
+			case EntityType_Player: {
+				render_command_entry_drawbitmap DrawBitmap;
+				DrawBitmap.Position = Entity->Transform.Position;
+				DrawBitmap.Size = Entity->Dimension;
+				DrawBitmap.Bitmap = AssetManager->Bitmaps + 
+										Entity->BitmapIndex;
+			
+//				Warning("(%f, %f), (%f, %f), %d", 
+//					DrawBitmap.Position.x,DrawBitmap.Position.y,
+//					DrawBitmap.Size.x, DrawBitmap.Size.y, 
+//					Entity->BitmapIndex);
+				PushRenderCommand(RenderCommands,
+					  RenderCommandEntryType_DrawBitmap,
+					  &DrawBitmap);
+
+			} break;
+			InvalidDefaultCase;
+		}
+
+		Entity = Entity->Prev;
+	}
+	EndStackTraceBlock;
 }
 
 static void 
 SWRenderCommands(framebuffer * Framebuffer, render_commands * Commands){
+	BeginStackTraceBlock;
 	u8 * EntryAt;
 	u8 * EntryAtLimit = ((u8* )Commands->Entries) + 
 						Commands->CapacityInBytes;
@@ -56,8 +106,8 @@ SWRenderCommands(framebuffer * Framebuffer, render_commands * Commands){
 					Rect.Position.x >= Framebuffer->Width || 
 					Rect.Position.y < 0 ||
 					Rect.Position.x < 0){
-					/* TODO(furkan) : This clipping must be done using 
-						camera's position
+					/*	TODO(furkan) : This clipping must be done using 
+						camera position
 					*/
 					/* NOTE(furkan) : Rect is out of the screen. Do not 
 						waste time iterating over it */
@@ -108,4 +158,5 @@ SWRenderCommands(framebuffer * Framebuffer, render_commands * Commands){
 			InvalidDefaultCase;
 		}
 	}
+	EndStackTraceBlock;
 }

@@ -1,7 +1,5 @@
 #include "mengine_opengles.h"
 
-#define PixelsPerUnit 100.0f
-
 char * BitmapVertexShader ="\
 	attribute vec4 aPosition;\
 	attribute vec2 aTexture;\
@@ -42,8 +40,11 @@ char * PolygonFragmentShader ="\
 static GLuint
 OpenGLESLoadTexture(opengles_manager * Manager,
 					asset_bitmap * TextureBitmap){
+	BeginStackTraceBlock;
 	GLuint Texture;
 	GLuint Format = GL_RGBA;
+
+	/* TODO(furkan) : Texture caching */
 
 	glGenTextures(1, &Texture);
 	GL_CHECKER
@@ -59,7 +60,7 @@ OpenGLESLoadTexture(opengles_manager * Manager,
 	GL_CHECKER
 	glTexImage2D(GL_TEXTURE_2D, 0, Format, 
 					TextureBitmap->Width, TextureBitmap->Height, 0,
-					Format, GL_UNSIGNED_BYTE, TextureBitmap->Data);
+					Format, GL_UNSIGNED_BYTE, TextureBitmap->Pixels);
 	GL_CHECKER
 	glBindTexture(GL_TEXTURE_2D, 0);
 	GL_CHECKER
@@ -67,7 +68,7 @@ OpenGLESLoadTexture(opengles_manager * Manager,
 		Error("An error occured while loading the texture");
 		Texture = -1;
 	}
-
+	EndStackTraceBlock;
 	return Texture;
 }
 
@@ -75,6 +76,7 @@ static GLuint
 OpenGLESLoadShader(opengles_manager * Manager, 
 					const char * VertexShaderSource, 
 					const char * FragmentShaderSource){
+	BeginStackTraceBlock;
 	GLint Result;
 	GLchar ShaderResultLog[256];
 	GLuint VertexShader, FragmentShader, ShaderProgram;
@@ -118,12 +120,13 @@ OpenGLESLoadShader(opengles_manager * Manager,
 		Error("%s", ShaderResultLog);
 		ShaderProgram = -1;
 	}
-
+	EndStackTraceBlock;
 	return ShaderProgram;
 }
 
 static void
 OpenGLESInitShaders(opengles_manager * Manager){
+	BeginStackTraceBlock;
 	opengles_bitmap_shader * BitmapShader = &Manager->BitmapShader;
 	BitmapShader->Program = OpenGLESLoadShader(Manager, 
 												BitmapVertexShader, 
@@ -144,10 +147,12 @@ OpenGLESInitShaders(opengles_manager * Manager){
 	PolygonShader->PositionLocation = glGetAttribLocation(PolygonShader->Program, "aPosition");
 	PolygonShader->ColorLocation = glGetUniformLocation(PolygonShader->Program, "uColor");
 	PolygonShader->ProjectionLocation = glGetUniformLocation(PolygonShader->Program,"uProjection");
+	EndStackTraceBlock;
 }
 
 static void 
 OpenGLESInit(ANativeWindow * Window, opengles_manager * Manager){
+	BeginStackTraceBlock;
 	EGLint Format, NumConfigs;
 	GLenum Status;
 	EGLConfig Config;
@@ -188,12 +193,12 @@ OpenGLESInit(ANativeWindow * Window, opengles_manager * Manager){
 							Success &= eglQuerySurface(Manager->Display, Manager->Surface, EGL_HEIGHT, &Manager->ScreenDim.Height);
 							Success &= (Manager->ScreenDim.Width > 0) && (Manager->ScreenDim.Height > 0);
 							if (Success){
-								glViewport(0, 0, 1280/*Manager->ScreenDim.Width*/, Manager->ScreenDim.Height);
+								glViewport(0, 0, Manager->ScreenDim.Width, Manager->ScreenDim.Height);
 								glDisable(GL_DEPTH_TEST);
 								
 								memset(Manager->ProjectionMatrix,
 									0, sizeof(Manager->ProjectionMatrix));
-								Manager->ProjectionMatrix[0][0] = (PixelsPerUnit * 2.0f) / 1280.0f;//(GLfloat)Manager->ScreenDim.Width;
+								Manager->ProjectionMatrix[0][0] = (PixelsPerUnit * 2.0f) / (GLfloat)Manager->ScreenDim.Width;
 								Manager->ProjectionMatrix[1][1] = (PixelsPerUnit * 2.0f) / (GLfloat)Manager->ScreenDim.Height;
 								Manager->ProjectionMatrix[2][2] = -1.0f;
 								Manager->ProjectionMatrix[3][0] = -1.0f;
@@ -213,7 +218,6 @@ OpenGLESInit(ANativeWindow * Window, opengles_manager * Manager){
 
 								Manager->IsInitialised = true;
 								Verbose("OpenGL ES initialised!");
-
 							}
 						}
 					}		
@@ -221,9 +225,21 @@ OpenGLESInit(ANativeWindow * Window, opengles_manager * Manager){
 			}
 		}
 	}
+	EndStackTraceBlock;
+}
+
+static void OpenGLESDeleteShader(GLuint Program){
+	if(Program != -1){
+		glDeleteShader(Program);
+	}
 }
 
 static void OpenGLESStop(opengles_manager * Manager){
+	BeginStackTraceBlock;
+
+	OpenGLESDeleteShader(Manager->BitmapShader.Program);
+	OpenGLESDeleteShader(Manager->PolygonShader.Program);
+
 	if (Manager->Display != EGL_NO_DISPLAY) {
 		eglMakeCurrent(Manager->Display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
@@ -241,11 +257,13 @@ static void OpenGLESStop(opengles_manager * Manager){
 		Manager->Display = EGL_NO_DISPLAY;
 		Manager->IsInitialised = false;
 	}
+	EndStackTraceBlock;
 }
 
 static void 
 OpenGLESRenderCommands(opengles_manager * Manager, 
 						render_commands * Commands){
+	BeginStackTraceBlock;
 	u8 * EntryAt = (u8 *)Commands->Entries;
 	u8 * EntryAtLimit = (u8 *)(Commands->Entries) + Commands->EntryAt;
 	s32 Count = 0;
@@ -301,8 +319,18 @@ OpenGLESRenderCommands(opengles_manager * Manager,
 				GL_CHECKER
 				glEnableVertexAttribArray(Shader->UVLocation);
 				GL_CHECKER	
+
+				/*	TODO(furkan) : Pack UV coordinates with texture data.
+					Current version will cause a lot pain in the butt
+					for texture atlases.
+				*/
+				v2 UV[4];
+				UV[0] = V2(0.0f, 1.0f);
+				UV[1] = V2(1.0f, 1.0f);
+				UV[2] = V2(1.0f, 0.0f);
+				UV[3] = V2(0.0f, 0.0f);
 				glVertexAttribPointer(Shader->UVLocation, 2,
-					GL_FLOAT, GL_FALSE, sizeof(v2), Command->Bitmap->UV);
+					GL_FLOAT, GL_FALSE, sizeof(v2), UV);
 				GL_CHECKER
 				glEnable(GL_BLEND);
 				GL_CHECKER	
@@ -327,7 +355,6 @@ OpenGLESRenderCommands(opengles_manager * Manager,
 				GL_CHECKER
 			} break;
 			case RenderCommandEntryType_DrawRect:{
-//				Error("Rendering DrawRect command");
 				render_command_entry_drawrect * Command = (render_command_entry_drawrect *)EntryAt;
 				EntryAt += sizeof(render_command_entry_drawrect);
 		
@@ -392,4 +419,5 @@ OpenGLESRenderCommands(opengles_manager * Manager,
 	}
 
 	eglSwapBuffers(Manager->Display, Manager->Surface);	
+	EndStackTraceBlock;
 }

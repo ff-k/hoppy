@@ -1,5 +1,6 @@
 #include <android_native_app_glue.h>
 #include <android/input.h>
+#include <android/asset_manager.h>
 
 #include "mengine_platform.h"
 #include "mengine_opengles.h"
@@ -35,7 +36,6 @@ static char __logTemp[__LogTempSize];
 #define Error(...) __log(ANDROID_LOG_ERROR, __VA_ARGS__)
 #define Warning(...) __log(ANDROID_LOG_WARN, __VA_ARGS__)
 
-
 /* Other Util */
 #define Assert(expr) \
 	if(!(expr)){ \
@@ -60,12 +60,9 @@ typedef struct android_shared_data{
 
 	android_input_handler InputHandler;
 
-	s32 ScreenWidth;
-	s32 ScreenHeight;
+	v2i ScreenDim;
 
 	b8 IsRunning;
 	b8 IsEnabled;
 	b8 RendererAvailable;
 } android_shared_data;
-
-

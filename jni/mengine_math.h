@@ -75,6 +75,22 @@ v2 NormaliseV2(v2 Vector){
 	return Result;
 }
 
+v2u NormaliseV2U(v2u Vector){
+	v2u Result;
+	r32 Length = sqrt(Vector.x*Vector.x + Vector.y*Vector.y);
+	Result.x = Vector.x/Length;
+	Result.y = Vector.y/Length;
+	return Result;
+}
+
+v2i NormaliseV2I(v2i Vector){
+	v2i Result;
+	r32 Length = sqrt(Vector.x*Vector.x + Vector.y*Vector.y);
+	Result.x = Vector.x/Length;
+	Result.y = Vector.y/Length;
+	return Result;
+}
+
 typedef struct v3{
 	union{
 		struct{

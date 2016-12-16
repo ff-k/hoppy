@@ -1,28 +1,40 @@
 #include "android_mengine.h"
 
 #include "mengine_asset.c"
+#include "mengine_component.c"
+#include "mengine_entity.c"
 #include "mengine_opengles.c"
 #include "mengine_render.c"
 #include "hoppy.c"
 
+static void 
+SegmentationFaultHandler(int Signal){
+	PrintStackTrace;
+	exit(0);
+}
+
 static PlatformMemoryAlloc(AndroidMemoryAllocate){
+	BeginStackTraceBlock;
 	void * Allocated = malloc(size);
 	if(!Allocated){
 		Error("Memory allocation failed!");
 	}
-
+	EndStackTraceBlock;
 	return Allocated;
 }
 
 static void AndroidInitPlatformAPI(platform_api * PlatformAPI){
+	BeginStackTraceBlock;
 	ZeroStruct(*PlatformAPI);
 	PlatformAPI->AllocateMemory = AndroidMemoryAllocate;
 
 	Verbose("Initialised PlatformAPI");
+	EndStackTraceBlock;
 }
 
 static void 
 AndroidLoadGameFunctions(game_functions * Functions){
+	BeginStackTraceBlock;
 	ZeroStruct(*Functions);
 
 	/* TODO(furkan) : Load from library */
@@ -30,12 +42,14 @@ AndroidLoadGameFunctions(game_functions * Functions){
 	Functions->Update = GameUpdate;
 
 	Verbose("Loaded game functions");
+	EndStackTraceBlock;
 }
 
 static void 
 AndroidInitGameMemory(game_memory * Memory, 
 						opengles_manager * GLESManager,
 						asset_manager * AssetManager){
+	BeginStackTraceBlock;
 	ZeroStruct(*Memory);
 
 	Memory->Memory = AndroidMemoryAllocate(InitialGameMemorySize);
@@ -44,27 +58,36 @@ AndroidInitGameMemory(game_memory * Memory,
 	Memory->GLESManager = GLESManager;
 	Memory->AssetManager = AssetManager;
 
-	AndroidInitPlatformAPI(&Memory->PlatformAPI);
+	Memory->EntitySentinel.Next = &Memory->EntitySentinel;
+	Memory->EntitySentinel.Prev = &Memory->EntitySentinel;
+
 	Verbose("Initialised game memory");
+	EndStackTraceBlock;
 }
 
 static b8 
 AndroidLockWindow(ANativeWindow * Window, 
 				  ANativeWindow_Buffer * WindowBuffer){
+	BeginStackTraceBlock;
 	b8 Success = true;
 	if(ANativeWindow_lock(Window, WindowBuffer, 0) < 0){
 		Error("LockWindow failed!");
 		Success = false;
 	}
+	
+	EndStackTraceBlock;
 	return Success;
 }
 
 static void AndroidUnlockWindow(ANativeWindow * Window){
+	BeginStackTraceBlock;
 	ANativeWindow_unlockAndPost(Window);
+	EndStackTraceBlock;
 }
 
 static void
 AndroidInitRenderer(android_app * App){
+	BeginStackTraceBlock;
 	ANativeWindow * Window = App->window;
 	android_shared_data * Shared = App->userData;
 #if SW_RENDERER
@@ -77,10 +100,27 @@ AndroidInitRenderer(android_app * App){
 	OpenGLESInit(Window, GLESManager);
 #endif
 	Shared->RendererAvailable = true;
+	EndStackTraceBlock;
 }
+
+static void
+AndroidDestroyRenderer(android_app * App){
+	BeginStackTraceBlock;
+	android_shared_data * Shared = App->userData;
+#if SW_RENDERER
+#else
+	opengles_manager * GLESManager = &Shared->GLESManager;
+	
+	OpenGLESStop(GLESManager);
+#endif
+	Shared->RendererAvailable = false;
+	EndStackTraceBlock;
+}
+
 
 static void 
 AndroidRenderFrame(android_app * App, render_commands * Commands){
+	BeginStackTraceBlock;
 	android_shared_data * Shared = App->userData;
 	if(Shared->RendererAvailable){
 	#if SW_RENDERER
@@ -101,30 +141,30 @@ AndroidRenderFrame(android_app * App, render_commands * Commands){
 //		Shared->IsEnabled = false;
 	#endif
 	}
+	EndStackTraceBlock;
 }
 
 static void AndroidOnActivate(android_app * App){
+	BeginStackTraceBlock;
 	android_shared_data * Shared = App->userData;
 	AndroidInitRenderer(App);
 	Shared->IsEnabled = true;
+	EndStackTraceBlock;
 }
 
 static void AndroidOnDeactivate(android_app * App){
+	BeginStackTraceBlock;
 	android_shared_data * Shared = App->userData;
-	Shared->RendererAvailable = false;
-#if SW_RENDERER
-#else
-	opengles_manager * GLESManager = &Shared->GLESManager;
-	
-	OpenGLESStop(GLESManager);
-#endif
+	AndroidDestroyRenderer(App);
 	Shared->IsEnabled = false;
+	EndStackTraceBlock;
 }
 
 static void 
 AndroidChangeInputHandler(android_input_handler * InputHandler, 
 								AInputQueue * NewInputQueue){
-   	if(InputHandler->InputQueue){
+  	BeginStackTraceBlock;
+	if(InputHandler->InputQueue){
    		AInputQueue_detachLooper(InputHandler->InputQueue);
    	}
 
@@ -185,9 +225,11 @@ AndroidChangeInputHandler(android_input_handler * InputHandler,
    			Error("Looper_prepare has failed!");
    		}
    	}
+	EndStackTraceBlock;
 }
 
 void AndroidMainCallback(android_app * App, s32 cmd){
+	BeginStackTraceBlock;
 	switch(cmd){
     	case APP_CMD_INPUT_CHANGED:{
 			Verbose("APP_CMD_INPUT_CHANGED");
@@ -199,8 +241,9 @@ void AndroidMainCallback(android_app * App, s32 cmd){
 			android_shared_data * Shared = App->userData;
 			AndroidOnActivate(App);
 
-			Shared->ScreenWidth = ANativeWindow_getWidth(App->window);
-			Shared->ScreenHeight = ANativeWindow_getHeight(App->window);
+	
+			Shared->ScreenDim = V2I(ANativeWindow_getWidth(App->window),
+									ANativeWindow_getHeight(App->window));
 
 			Verbose("APP_CMD_INIT_WINDOW");
 		} break;
@@ -208,17 +251,16 @@ void AndroidMainCallback(android_app * App, s32 cmd){
 			android_shared_data * Shared = App->userData;
 			AndroidOnDeactivate(App);
 
-			Shared->ScreenWidth = 0;
-			Shared->ScreenHeight = 0;
+			Shared->ScreenDim = V2I(0, 0);
 
  			Verbose("APP_CMD_TERM_WINDOW");
 		} break;
 	   	case APP_CMD_WINDOW_RESIZED:{
 			android_shared_data * Shared = App->userData;
 
-			Shared->ScreenWidth = ANativeWindow_getWidth(App->window);
-			Shared->ScreenHeight = ANativeWindow_getHeight(App->window);
-
+			Shared->ScreenDim = V2I(ANativeWindow_getWidth(App->window),
+									ANativeWindow_getHeight(App->window));
+	
  			Verbose("APP_CMD_WINDOW_RESIZED");
 		} break;
 	   	case APP_CMD_WINDOW_REDRAW_NEEDED:
@@ -259,10 +301,12 @@ void AndroidMainCallback(android_app * App, s32 cmd){
 			break;
 		InvalidDefaultCase;
 	}
+	EndStackTraceBlock;
 }
 
 static void
 AndroidHandleInput(android_shared_data * Shared, game_input * GameInput){
+	BeginStackTraceBlock;
 	Verbose("Handling Input");
 	AInputEvent * InputEvent = 0;
 	AInputQueue * InputQueue = Shared->InputHandler.InputQueue;
@@ -438,9 +482,77 @@ AndroidHandleInput(android_shared_data * Shared, game_input * GameInput){
 		}
     	AInputQueue_finishEvent(InputQueue, InputEvent, Handled);
 	}
+	EndStackTraceBlock;
+}
+
+static void
+AndroidInitAssetManager(AAssetManager * AndroidAssetManager,
+						asset_manager * AssetManager, 
+						char * AssetFileName){
+	AAsset * Asset = AAssetManager_open(AndroidAssetManager,
+									AssetFileName, AASSET_MODE_STREAMING);
+	if(Asset){
+		asset_header Header;
+		AAsset_read(Asset, &Header.FileFormat, sizeof(Header.FileFormat));
+		AAsset_read(Asset, &Header.Version, sizeof(Header.Version));
+
+		Debug("Asset FileFormat : %d,  Version %d", 
+										Header.FileFormat,
+										Header.Version);
+
+		AAsset_read(Asset, &AssetManager->AssetTypeCount, sizeof(uint16_t));
+		Debug("AssetTypeCount : %d", AssetManager->AssetTypeCount);
+		AssetManager->AssetTypes = Platform.AllocateMemory(sizeof(asset_type) * AssetManager->AssetTypeCount);
+		uint16_t AssetTypeIndex;
+		for(AssetTypeIndex = 0; 
+			AssetTypeIndex < AssetManager->AssetTypeCount; 
+			AssetTypeIndex++){
+			
+			asset_type * AssetType = AssetManager->AssetTypes + AssetTypeIndex;
+			AAsset_read(Asset, &AssetType->ID,sizeof(AssetType->ID));
+			AAsset_read(Asset, &AssetType->AssetCount, 
+						sizeof(AssetType->AssetCount));
+			Debug("AssetTypeID  : %s, AssetCount : %d", AssetType->ID, AssetType->AssetCount);
+			
+			AssetType->AssetTable = Platform.AllocateMemory(sizeof(asset_table_entry) * AssetType->AssetCount);
+			uint32_t EntryIndex;
+			for(EntryIndex=0; 
+				EntryIndex<AssetType->AssetCount; 
+				EntryIndex++){
+
+				asset_table_entry * Entry = AssetType->AssetTable + EntryIndex;
+				AAsset_read(Asset, &Entry->ID, sizeof(Entry->ID));
+				Debug("Asset ID : %s", Entry->ID);
+				AAsset_read(Asset, &Entry->Offset, sizeof(Entry->Offset));
+			}
+		}
+
+		uint8_t BytesPerPixel = 4;
+		asset_type * AssetTypeBitmap = AssetManager->AssetTypes + 0;
+		uint32_t BitmapCount = AssetTypeBitmap->AssetCount;
+		AssetManager->Bitmaps = Platform.AllocateMemory(sizeof(asset_bitmap) * BitmapCount);
+		uint32_t BitmapIndex;
+		for(BitmapIndex=0; BitmapIndex<BitmapCount; BitmapIndex++){
+			asset_bitmap * Bitmap = AssetManager->Bitmaps + BitmapIndex;
+
+			AAsset_read(Asset, &Bitmap->Width, sizeof(Bitmap->Width));
+			AAsset_read(Asset, &Bitmap->Height, sizeof(Bitmap->Height));
+			Debug("BitmapIndex :%d, Width : %d, Height : %d", BitmapIndex, Bitmap->Width, Bitmap->Height);
+
+			uint32_t PixelCount = Bitmap->Width * Bitmap->Height;
+			Bitmap->Pixels = Platform.AllocateMemory(BytesPerPixel * PixelCount);
+			AAsset_read(Asset, Bitmap->Pixels, BytesPerPixel*PixelCount);
+		}
+
+		AAsset_close(Asset);
+	} else {
+		Error("Asset could not be opened!");
+	}
+
 }
 
 void android_main(android_app * App) {
+	BeginStackTraceBlock;
 	Verbose("Entered android_main");
 	/* NOTE(furkan) : If you look into android_native_glue.c,
 	it seems like app_dummy() function does nothing useful.
@@ -448,6 +560,10 @@ void android_main(android_app * App) {
 	beginning. */
 	app_dummy();
 
+	/* Segmentation fault debugger */
+#if MENGINE_DEBUG 
+	signal(SIGSEGV, SegmentationFaultHandler);
+#endif
 	/* Initialise android platform layer */
 	android_shared_data Shared;
 	ZeroStruct(Shared);
@@ -455,6 +571,8 @@ void android_main(android_app * App) {
 	App->userData = &Shared;
 	App->onAppCmd = AndroidMainCallback;
 	
+	AndroidInitPlatformAPI(&Platform);
+
 	/*
 	Verbose("Internal dir : %s", App->activity->internalDataPath);
 	Verbose("External dir : %s", App->activity->externalDataPath);
@@ -465,14 +583,19 @@ void android_main(android_app * App) {
 	AndroidLoadGameFunctions(&Game);
 
 	game_input GameInput;
-
+	ZeroStruct(GameInput);
+	
 	/* Initialise Asset Manager */
 	asset_manager AssetManager;
 	ZeroStruct(AssetManager);
+	AndroidInitAssetManager(App->activity->assetManager,
+						&AssetManager, 
+						"hoppy_assets.mass");
 
 	/* Initialise Game Memory */
 	game_memory GameMemory;
 	AndroidInitGameMemory(&GameMemory, &Shared.GLESManager, &AssetManager);
+
 	/* Initialise Render Commands */
 	render_commands RenderCommands;
 	ZeroStruct(RenderCommands);
@@ -480,6 +603,7 @@ void android_main(android_app * App) {
 	RenderCommands.Entries = AndroidMemoryAllocate(InitialRenderCommandsSize);
 	RenderCommands.CapacityInBytes = InitialRenderCommandsSize;
 
+	
 	/* Initialise Timer */
 	timer Timer;
 	Timer.LastCounter = GetCurrentTime();
@@ -512,7 +636,7 @@ void android_main(android_app * App) {
 		
 		while (Shared.IsRunning) {
 			Ident = ALooper_pollAll(Shared.IsEnabled-1, 0, &Events, (void**) &Source);	
-			if(Ident < 0){
+	if(Ident < 0){
 				break;
 			}
 
@@ -528,30 +652,32 @@ void android_main(android_app * App) {
 				break;
 			}
 		}
-	
+
 		u64 CurrentTime = GetCurrentTime();
 		r32 TimeDifference = (r32)(((r64)(CurrentTime-Timer.LastCounter))/((r64)Timer.Frequency));
 		TimeDifference *= 1000;
 		TimeAccumulator += TimeDifference;
-		if(Shared.IsEnabled && Shared.RendererAvailable	){
-			GameMemory.Screen = V2((r32) Shared.ScreenWidth, 
-									(r32) Shared.ScreenHeight);
-			
+		if(Shared.IsEnabled && Shared.RendererAvailable	){			
 			s32 i=0;
 			Debug("Frame time %f miliseconds", TimeDifference);
 
 			while(TimeAccumulator >= GameFrameMiliseconds){
 				Debug("%d. Accumulator %f", i, TimeAccumulator);
 				GameInput.DeltaTime = GameFrameMiliseconds;
-				Game.Update(&GameMemory, &RenderCommands, &GameInput);
+				Game.Update(&GameMemory, &GameInput);
 				TimeAccumulator -= GameFrameMiliseconds;
 				i++;
 			}
-
+			
+			ExtractRenderCommands(&RenderCommands,
+									&GameMemory.EntitySentinel, 
+									GameMemory.AssetManager);
+			
 			AndroidRenderFrame(App, &RenderCommands);
 		}
 		Timer.LastCounter = CurrentTime;
 	}
 	Verbose("Finished");
 	ANativeActivity_finish(App->activity);
+	EndStackTraceBlock;
 }
