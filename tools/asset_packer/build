@@ -1,0 +1,3 @@
+#!/bin/sh
+
+gcc src/asset_packer.c -o bin/asset_packer -g -Wall -Werror
