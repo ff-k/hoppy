@@ -1,8 +1,10 @@
 #include "android_mengine.h"
 
+#include "mengine_rng.c"
 #include "mengine_asset.c"
 #include "mengine_component.c"
 #include "mengine_entity.c"
+#include "mengine_input.c"
 #include "mengine_opengles.c"
 #include "mengine_render.c"
 #include "hoppy.c"
@@ -97,7 +99,7 @@ AndroidInitRenderer(android_app * App){
 	}
 #else
 	opengles_manager * GLESManager = &Shared->GLESManager;
-	OpenGLESInit(Window, GLESManager);
+	OpenGLESInit(Window, GLESManager, (v2i *)&Shared->ScreenDim);
 #endif
 	Shared->RendererAvailable = true;
 	EndStackTraceBlock;
@@ -239,10 +241,9 @@ void AndroidMainCallback(android_app * App, s32 cmd){
 		} break;
     	case APP_CMD_INIT_WINDOW:{
 			android_shared_data * Shared = App->userData;
-			AndroidOnActivate(App);
+			AndroidOnActivate(App);	
 
-	
-			Shared->ScreenDim = V2I(ANativeWindow_getWidth(App->window),
+			Shared->ScreenDim = V2U(ANativeWindow_getWidth(App->window),
 									ANativeWindow_getHeight(App->window));
 
 			Verbose("APP_CMD_INIT_WINDOW");
@@ -251,16 +252,16 @@ void AndroidMainCallback(android_app * App, s32 cmd){
 			android_shared_data * Shared = App->userData;
 			AndroidOnDeactivate(App);
 
-			Shared->ScreenDim = V2I(0, 0);
+			Shared->ScreenDim = V2U(0, 0);
 
  			Verbose("APP_CMD_TERM_WINDOW");
 		} break;
 	   	case APP_CMD_WINDOW_RESIZED:{
 			android_shared_data * Shared = App->userData;
 
-			Shared->ScreenDim = V2I(ANativeWindow_getWidth(App->window),
+			Shared->ScreenDim = V2U(ANativeWindow_getWidth(App->window),
 									ANativeWindow_getHeight(App->window));
-	
+
  			Verbose("APP_CMD_WINDOW_RESIZED");
 		} break;
 	   	case APP_CMD_WINDOW_REDRAW_NEEDED:
@@ -611,7 +612,7 @@ void android_main(android_app * App) {
 	r32 TimeAccumulator = 0.0f;
 	/* TODO(furkan) : Detect screen refresh rate and calculate 
 		GameFrameMiliseconds using that */
-	r32 GameFrameMiliseconds = 1000/60.0f;
+	r32 GameFrameMiliseconds = 1.0f/60.0f;
 	Verbose("GameFrameMiliseconds = %f", GameFrameMiliseconds);
 
 	Verbose("Engine is initialised");
@@ -633,6 +634,7 @@ void android_main(android_app * App) {
 		/* Render Frame */
 		RenderCommands.EntryAt = 0;
 		GameInput.PointerCount = GameInput.PointerPressed[0] ? 1 : 0;
+		GameMemory.ScreenDim = Shared.ScreenDim;
 		
 		while (Shared.IsRunning) {
 			Ident = ALooper_pollAll(Shared.IsEnabled-1, 0, &Events, (void**) &Source);	
@@ -655,19 +657,18 @@ void android_main(android_app * App) {
 
 		u64 CurrentTime = GetCurrentTime();
 		r32 TimeDifference = (r32)(((r64)(CurrentTime-Timer.LastCounter))/((r64)Timer.Frequency));
-		TimeDifference *= 1000;
 		TimeAccumulator += TimeDifference;
 		if(Shared.IsEnabled && Shared.RendererAvailable	){			
 			s32 i=0;
 			Debug("Frame time %f miliseconds", TimeDifference);
 
-			while(TimeAccumulator >= GameFrameMiliseconds){
-				Debug("%d. Accumulator %f", i, TimeAccumulator);
+//			while(TimeAccumulator >= GameFrameMiliseconds){
+//				Debug("%d. Accumulator %f", i, TimeAccumulator);
 				GameInput.DeltaTime = GameFrameMiliseconds;
 				Game.Update(&GameMemory, &GameInput);
-				TimeAccumulator -= GameFrameMiliseconds;
-				i++;
-			}
+//				TimeAccumulator -= GameFrameMiliseconds;
+//				i++;
+//			}
 			
 			ExtractRenderCommands(&RenderCommands,
 									&GameMemory.EntitySentinel, 

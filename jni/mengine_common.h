@@ -49,8 +49,6 @@ typedef u8 b8;
 #error GetThreadID is not defined!
 #endif
 
-#define Maximum(A,B) ((A) > (B)) ? (A) : (B)
-#define Minimum(A,B) ((A) < (B)) ? (A) : (B)
 
 /* Stack Trace Printer */
 #define MENGINE_DEBUG 1

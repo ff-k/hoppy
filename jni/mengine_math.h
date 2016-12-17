@@ -284,3 +284,8 @@ typedef struct rect{
 		bottom-left of the rectangle */
 	v2 Position;
 } rect;
+
+#define Maximum(A,B) ((A) > (B)) ? (A) : (B)
+#define Minimum(A,B) ((A) < (B)) ? (A) : (B)
+
+#define Square(X) ((X)*(X))

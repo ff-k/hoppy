@@ -14,7 +14,8 @@ typedef struct component {
 } component;
 
 typedef struct component_rigid_body {
-	v3 Velocity;
-	v3 Acceleration;
+	v2 Velocity;
+	v2 Acceleration;
+	v2 Drag;
 } component_rigid_body;
 

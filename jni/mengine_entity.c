@@ -32,14 +32,24 @@ CreateEntity(game_memory * Memory, entity_type Type,
 			asset_manager * AssetManager = Memory->AssetManager;
 			Entity->BitmapIndex = LoadBitmap(AssetManager, "Character");
 			Assert(Entity->BitmapIndex > 0);
-			AddComponent(Entity, ComponentType_RigidBody);
+			component_rigid_body * RigidBody;
+			RigidBody = AddComponent(Entity, 
+									ComponentType_RigidBody)->Structure;
+			RigidBody->Velocity = V2(0.0f, 0.0f);
+			RigidBody->Acceleration = V2(0.0f, 0.0f);
+			RigidBody->Drag = V2(0.97f, 1.0f);
 			Entity->IsVisible = true;
 		} break;
 		case EntityType_Enemy: {
 			asset_manager * AssetManager = Memory->AssetManager;
 			Entity->BitmapIndex = LoadBitmap(AssetManager, "Enemy");
 			Assert(Entity->BitmapIndex > 0);
-			AddComponent(Entity, ComponentType_RigidBody);
+			component_rigid_body * RigidBody;
+			RigidBody = AddComponent(Entity, 
+									ComponentType_RigidBody)->Structure;
+			RigidBody->Velocity = V2(6.0f, 0.0f);
+			RigidBody->Acceleration = V2(0.0f, GravityAcceleration);
+			RigidBody->Drag = V2(1.0f, 1.0f);
 			Entity->IsVisible = true;
 		} break;
 		InvalidDefaultCase;
@@ -51,77 +61,77 @@ CreateEntity(game_memory * Memory, entity_type Type,
 	return Entity;
 }
 
-#define MaxDistanceFromGround 5.12f
+static void
+MoveEntity(entity * Entity, r32 DeltaTime){
+	component_rigid_body * RigidBody = GetComponent(Entity, 
+												ComponentType_RigidBody); 
+	if(RigidBody){	
+		v2 Acc = RigidBody->Acceleration;
+
+		Entity->Transform.Position.x += (0.5f*Acc.x*Square(DeltaTime)) +
+										RigidBody->Velocity.x*DeltaTime;
+		Entity->Transform.Position.y += (0.5f*Acc.y*Square(DeltaTime)) +
+										RigidBody->Velocity.y*DeltaTime;
+
+		RigidBody->Velocity.x += Acc.x * DeltaTime;
+		RigidBody->Velocity.y += Acc.y * DeltaTime;
+		
+		RigidBody->Velocity.x *= RigidBody->Drag.x; 
+		RigidBody->Velocity.y *= RigidBody->Drag.y; 
+	} else {
+		Warning("An entity which has not got a rigid body component tried to move!");
+	}
+}
 
 static void 
-UpdateEntities(game_memory * Memory, game_input * Input){
+UpdateEntities(game_memory * Memory, r32 DeltaTime){
 	BeginStackTraceBlock;
-	/*	NOTE(furkan) : 
-		Entites[0] is reserved for null-entity
-	*/
+
 	entity * EntitySentinel = &Memory->EntitySentinel;
 	entity * Entity = EntitySentinel->Prev;
 	while(Entity != EntitySentinel){
 
 		switch(Entity->Type){
 			case EntityType_Player: {
-				component_rigid_body * RigidBody = GetComponent(Entity,
-												ComponentType_RigidBody);
-				Assert(RigidBody != 0);
-				r32 Speed = 0.0025f; // RigidBody->Velocity.y;
-				static r32 DistanceFactor = 0.0f;
-				r32 DistanceFromGround = sinf(DistanceFactor) * MaxDistanceFromGround;
-				DistanceFactor += Speed*Input->DeltaTime;
-				Entity->Transform.Position.y = DistanceFromGround;
-				if(DistanceFromGround<0.0f){
-					Entity->Transform.Position.y *= -1.0f;
-				}
-				Entity->Transform.Position.y += 0.8f;
-
-				v2 Screen = V2(	Memory->GLESManager->ScreenDim.x,
-								Memory->GLESManager->ScreenDim.y);
-				if(Input->PointerCount){
-					if(Input->PointerCoordinates[0].x > Screen.x/2.0f){
-						Entity->Transform.Position.x += 0.1f;
-					} else {
-						Entity->Transform.Position.x -= 0.1f;
+				MoveEntity(Entity, DeltaTime);
+				component_rigid_body * RigidBody = GetComponent(Entity, 
+												ComponentType_RigidBody); 
+				if(RigidBody){	
+					/* TODO(furkan) : Collision detection */
+					if(Entity->Transform.Position.x < 0){
+						Entity->Transform.Position.x = 0;
+					} else if (Entity->Transform.Position.x > 12.80f){
+						Entity->Transform.Position.x = 12.80f;
+					}
+	
+					if(Entity->Transform.Position.y < 0.64f){
+						if(RigidBody->Velocity.y < 0.0f){
+							RigidBody->Velocity.y *= -1;
+						}
 					}
 				}
-#define MovementLimitLeft (Entity->Dimension.x/2.0f)
-#define MovementLimitRight (Screen.x/PixelsPerUnit-Entity->Dimension.x/2.0f)
-
-				if(Entity->Transform.Position.x < MovementLimitLeft){
-					Entity->Transform.Position.x = MovementLimitLeft;
-				} else if(Entity->Transform.Position.x > MovementLimitRight){
-					Entity->Transform.Position.x = MovementLimitRight;
-				}
-
 			} break;
 			case EntityType_Enemy: {
-				r32 Speed = 0.0025f; // RigidBody->Velocity.y;
-				static r32 DistanceFactor = 0.0f;
-				r32 DistanceFromGround = sinf(DistanceFactor) * MaxDistanceFromGround;
-				DistanceFactor += Speed*Input->DeltaTime;
-				Entity->Transform.Position.y = DistanceFromGround;
-				if(DistanceFromGround<0.0f){
-					Entity->Transform.Position.y *= -1.0f;
-				}
-				Entity->Transform.Position.y += 0.8f;
+				component_rigid_body * RigidBody = GetComponent(Entity, 
+												ComponentType_RigidBody); 
+				if(RigidBody){	
+					MoveEntity(Entity, DeltaTime);
 
-				v2 Screen = V2(	Memory->GLESManager->ScreenDim.x,
-								Memory->GLESManager->ScreenDim.y);
-
-#define MovementLimitLeft (Entity->Dimension.x/2.0f)
-#define MovementLimitRight (Screen.x/PixelsPerUnit-Entity->Dimension.x/2.0f)
-
-				if(Entity->Transform.Position.x < MovementLimitLeft){
-					Entity->Transform.Position.x = MovementLimitLeft;
-				} else if(Entity->Transform.Position.x > MovementLimitRight){
-					Entity->Transform.Position.x = MovementLimitRight;
+					if(Entity->Transform.Position.x < 0.0f){
+						if(	RigidBody->Velocity.x < 0.0f){
+							RigidBody->Velocity.x *= -1.0f;	
+						}				
+					} else if (Entity->Transform.Position.x > 12.80f){
+						if(	RigidBody->Velocity.x > 0.0f){
+							RigidBody->Velocity.x *= -1.0f;	
+						}				
+					}
+					if(Entity->Transform.Position.y < 0.64f){
+						RigidBody->Velocity.y *= -1;
+					}
 				}
 			} break;
 			case EntityType_Background : {
-
 			} break;
 			InvalidDefaultCase;
 		}

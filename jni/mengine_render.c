@@ -68,11 +68,7 @@ ExtractRenderCommands(render_commands * RenderCommands,
 				DrawBitmap.Size = Entity->Dimension;
 				DrawBitmap.Bitmap = AssetManager->Bitmaps + 
 										Entity->BitmapIndex;
-			
-//				Warning("(%f, %f), (%f, %f), %d", 
-//					DrawBitmap.Position.x,DrawBitmap.Position.y,
-//					DrawBitmap.Size.x, DrawBitmap.Size.y, 
-//					Entity->BitmapIndex);
+
 				PushRenderCommand(RenderCommands,
 					  RenderCommandEntryType_DrawBitmap,
 					  &DrawBitmap);

@@ -1,5 +1,6 @@
 #include "mengine_common.h"
 #include "mengine_math.h"
+#include "mengine_physics.h"
 #include "mengine_timer.h"
 #include "mengine_asset.h"
 #include "mengine_component.h"
@@ -44,6 +45,8 @@ typedef struct game_memory{
 	memsz Used;
 	memsz Capacity;
 	
+	v2u ScreenDim;
+
 	opengles_manager * GLESManager;
 	asset_manager * AssetManager;
 

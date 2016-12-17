@@ -151,7 +151,8 @@ OpenGLESInitShaders(opengles_manager * Manager){
 }
 
 static void 
-OpenGLESInit(ANativeWindow * Window, opengles_manager * Manager){
+OpenGLESInit(ANativeWindow * Window, opengles_manager * Manager, 
+													v2i * ScreenDim){
 	BeginStackTraceBlock;
 	EGLint Format, NumConfigs;
 	GLenum Status;
@@ -189,17 +190,20 @@ OpenGLESInit(ANativeWindow * Window, opengles_manager * Manager){
 						Success = Manager->Context != EGL_NO_CONTEXT;
 						if (Success){
 							Success = eglMakeCurrent(Manager->Display, Manager->Surface, Manager->Surface, Manager->Context);
-							Success &= eglQuerySurface(Manager->Display, Manager->Surface, EGL_WIDTH, &Manager->ScreenDim.Width);
-							Success &= eglQuerySurface(Manager->Display, Manager->Surface, EGL_HEIGHT, &Manager->ScreenDim.Height);
-							Success &= (Manager->ScreenDim.Width > 0) && (Manager->ScreenDim.Height > 0);
+							Success &= eglQuerySurface(Manager->Display, Manager->Surface, EGL_WIDTH, &ScreenDim->x);
+							Success &= eglQuerySurface(Manager->Display, Manager->Surface, EGL_HEIGHT, &ScreenDim->y);
+							Success &= (ScreenDim->Width > 0) && 
+										(ScreenDim->Height > 0);
 							if (Success){
-								glViewport(0, 0, Manager->ScreenDim.Width, Manager->ScreenDim.Height);
+								glViewport(0, 0, 
+											ScreenDim->x, 
+											ScreenDim->y);
 								glDisable(GL_DEPTH_TEST);
 								
 								memset(Manager->ProjectionMatrix,
 									0, sizeof(Manager->ProjectionMatrix));
-								Manager->ProjectionMatrix[0][0] = (PixelsPerUnit * 2.0f) / (GLfloat)Manager->ScreenDim.Width;
-								Manager->ProjectionMatrix[1][1] = (PixelsPerUnit * 2.0f) / (GLfloat)Manager->ScreenDim.Height;
+								Manager->ProjectionMatrix[0][0] = (PixelsPerUnit * 2.0f) / (GLfloat)ScreenDim->x;
+								Manager->ProjectionMatrix[1][1] = (PixelsPerUnit * 2.0f) / (GLfloat)ScreenDim->y;
 								Manager->ProjectionMatrix[2][2] = -1.0f;
 								Manager->ProjectionMatrix[3][0] = -1.0f;
 								Manager->ProjectionMatrix[3][1] = -1.0f;

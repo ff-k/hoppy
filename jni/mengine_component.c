@@ -1,4 +1,4 @@
-static void 
+static component *
 AddComponent(entity * Entity, component_type Type){
 	BeginStackTraceBlock;
 	component * Component = Platform.AllocateMemory(sizeof(component));
@@ -17,7 +17,9 @@ AddComponent(entity * Entity, component_type Type){
 		} break;
 		InvalidDefaultCase;
 	}
+
 	EndStackTraceBlock;
+	return Component;
 }
 
 static void * 

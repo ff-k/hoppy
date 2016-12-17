@@ -60,7 +60,7 @@ typedef struct android_shared_data{
 
 	android_input_handler InputHandler;
 
-	v2i ScreenDim;
+	v2u ScreenDim;
 
 	b8 IsRunning;
 	b8 IsEnabled;

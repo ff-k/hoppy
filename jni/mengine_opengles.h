@@ -36,8 +36,6 @@ typedef struct opengles_manager{
 	EGLSurface Surface;
 	EGLContext Context;
 
-	v2u ScreenDim;
-
 	GLfloat ProjectionMatrix[4][4];
 	GLushort RectIndices[6];
 	opengles_bitmap_shader BitmapShader;
