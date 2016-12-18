@@ -604,8 +604,7 @@ void android_main(android_app * App) {
 	
 	/* Initialise Timer */
 	timer Timer;
-	Timer.LastCounter = GetCurrentTime();
-	Timer.Frequency = GetProcessorFrequency();
+	InitialiseTimer(&Timer);
 	r32 TimeAccumulator = 0.0f;
 	/* TODO(furkan) : Detect screen refresh rate and calculate 
 		GameFrameMiliseconds using that */

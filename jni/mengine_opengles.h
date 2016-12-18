@@ -9,7 +9,9 @@
 		Error("OpenGL ES failed!");\
 	}
 
-#define GLESTextureCapacity 64
+#define GLESTextureCacheCapacity 32
+
+/* TODO(furkan) : Shader cache */
 #define GLESShaderCapacity 16
 
 typedef struct opengles_bitmap_shader{
@@ -29,6 +31,18 @@ typedef struct opengles_polygon_shader{
 	GLint ColorLocation;
 } opengles_polygon_shader;
 
+typedef struct opengles_texture_entry {
+	memsz TextureID;
+	GLuint Texture;
+	u64 Timestamp;
+} opengles_texture_entry;
+
+typedef struct opengles_texture_cache {
+	u32 Capacity;
+	u32 TextureCount;
+	opengles_texture_entry * Entries;
+} opengles_texture_cache;
+
 typedef struct opengles_manager{
 	EGLDisplay Display;
 	EGLSurface Surface;
@@ -36,8 +50,12 @@ typedef struct opengles_manager{
 
 	GLfloat ProjectionMatrix[4][4];
 	GLushort RectIndices[6];
+
 	opengles_bitmap_shader BitmapShader;
 	opengles_polygon_shader PolygonShader;
+
+	opengles_texture_cache TextureCache;
+
 	b8 IsInitialised;
 } opengles_manager;
 

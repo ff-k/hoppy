@@ -37,37 +37,85 @@ char * PolygonFragmentShader ="\
 		gl_FragColor = uColor;\
 	}";
 
+static void
+OpenGLESCacheTexture(opengles_texture_cache * Cache, 
+						memsz TextureID, GLuint Texture){
+	Assert(Cache->Capacity > 0)
+	opengles_texture_entry * Entry;
+	if(Cache->TextureCount == Cache->Capacity){
+		/* NOTE(furkan) : Find LRU and replace with the new one */
+		Entry = Cache->Entries + 0;
+		u32 EntryIndex;
+		for(EntryIndex=1; 
+			EntryIndex < Cache->TextureCount; 
+			EntryIndex++){
+			if(Cache->Entries[EntryIndex].Timestamp < Entry->Timestamp){
+				Entry = Cache->Entries + EntryIndex;
+			}	
+		}
+
+		glDeleteTextures(1, &Entry->Texture);
+	} else {
+		Entry = Cache->Entries + Cache->TextureCount;
+		Cache->TextureCount++;
+	}
+
+	Entry->TextureID = TextureID;
+	Entry->Texture = Texture;
+	
+	Entry->Timestamp = ElapsedTimeSinceStartup();
+}
 static GLuint
 OpenGLESLoadTexture(opengles_manager * Manager,
 					asset_bitmap * TextureBitmap){
 	BeginStackTraceBlock;
 	GLuint Texture;
-	GLuint Format = GL_RGBA;
 
-	/* TODO(furkan) : Texture caching */
-
-	glGenTextures(1, &Texture);
-	GL_CHECKER
-	glBindTexture(GL_TEXTURE_2D, Texture);
-	GL_CHECKER
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	GL_CHECKER
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	GL_CHECKER
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	GL_CHECKER
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	GL_CHECKER
-	glTexImage2D(GL_TEXTURE_2D, 0, Format, 
-					TextureBitmap->Width, TextureBitmap->Height, 0,
-					Format, GL_UNSIGNED_BYTE, TextureBitmap->Pixels);
-	GL_CHECKER
-	glBindTexture(GL_TEXTURE_2D, 0);
-	GL_CHECKER
-	if(glGetError() != GL_NO_ERROR){
-		Error("An error occured while loading the texture");
-		Texture = -1;
+	b32 FoundInCache = false;
+	u32 TextureIndex;
+	for(TextureIndex=0; 
+		TextureIndex<Manager->TextureCache.TextureCount;
+		TextureIndex++){
+		opengles_texture_entry * Entry = Manager->TextureCache.Entries
+														+ TextureIndex;
+		if(Entry->TextureID == (memsz)TextureBitmap){
+			Texture = Entry->Texture;
+			FoundInCache = true;
+			Debug("Using a texture from texture cache");
+			break;
+		}
 	}
+
+	if(!FoundInCache){
+		GLuint Format = GL_RGBA;
+	
+		glGenTextures(1, &Texture);
+		GL_CHECKER
+		glBindTexture(GL_TEXTURE_2D, Texture);
+		GL_CHECKER
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		GL_CHECKER
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		GL_CHECKER
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		GL_CHECKER
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		GL_CHECKER
+		glTexImage2D(GL_TEXTURE_2D, 0, Format, 
+						TextureBitmap->Width, TextureBitmap->Height, 0,
+						Format, GL_UNSIGNED_BYTE, TextureBitmap->Pixels);
+		GL_CHECKER
+		glBindTexture(GL_TEXTURE_2D, 0);
+		GL_CHECKER
+		if(glGetError() != GL_NO_ERROR){
+			Error("An error occured while loading the texture");
+			Texture = -1;
+		} else {
+			OpenGLESCacheTexture(&Manager->TextureCache, 
+								(memsz)TextureBitmap, Texture);
+		}
+	}
+	
 	EndStackTraceBlock;
 	return Texture;
 }
@@ -80,6 +128,7 @@ OpenGLESLoadShader(opengles_manager * Manager,
 	GLint Result;
 	GLchar ShaderResultLog[256];
 	GLuint VertexShader, FragmentShader, ShaderProgram;
+	b8 Success = true;
 
 	VertexShader = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(VertexShader, 1, &VertexShaderSource, 0);
@@ -89,6 +138,7 @@ OpenGLESLoadShader(opengles_manager * Manager,
 		Error("Vertex shader compilation failed!");
 		glGetShaderInfoLog(VertexShader, sizeof(ShaderResultLog), 0, ShaderResultLog);
 		Error("%s", ShaderResultLog);
+		Success = false;
 	}
 	
 
@@ -100,26 +150,44 @@ OpenGLESLoadShader(opengles_manager * Manager,
 		Error("Fragment shader compilation failed!");
 		glGetShaderInfoLog(FragmentShader, sizeof(ShaderResultLog), 0, ShaderResultLog);
 		Error("%s", ShaderResultLog);
+		Success = false;
 	}
 
 	ShaderProgram = glCreateProgram();
-	glAttachShader(ShaderProgram, VertexShader);
-	glAttachShader(ShaderProgram, FragmentShader);
-	glLinkProgram(ShaderProgram);
-	glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &Result);
+	if(ShaderProgram){
+		glAttachShader(ShaderProgram, VertexShader);
+		glAttachShader(ShaderProgram, FragmentShader);
+		glLinkProgram(ShaderProgram);
+		glGetProgramiv(ShaderProgram, GL_LINK_STATUS, &Result);
+		if (Result == GL_FALSE){
+			Error("Shader program could not been linked!");
+			glGetProgramInfoLog(ShaderProgram, sizeof(ShaderResultLog), 0, ShaderResultLog);
+			Error("%s", ShaderResultLog);
+			Success = false;
+		}
 
-	/* TODO(furkan) : glValidateShader() */
+		glValidateProgram(ShaderProgram);
+		glGetProgramiv(ShaderProgram, GL_VALIDATE_STATUS, &Result);
+		if(Result == GL_FALSE){
+			Error("Shader program could not been validated!");
+			glGetProgramInfoLog(ShaderProgram, sizeof(ShaderResultLog), 0, ShaderResultLog);
+			Error("%s", ShaderResultLog);
+			Success = false;
+		}
 
-	glDetachShader(ShaderProgram, VertexShader);
+		glDetachShader(ShaderProgram, VertexShader);
+		glDetachShader(ShaderProgram, FragmentShader);
+	} else {
+		Success = false;
+	}
+
 	glDeleteShader(VertexShader);
-	glDetachShader(ShaderProgram, FragmentShader);
 	glDeleteShader(FragmentShader);
-	if (Result == GL_FALSE){
-		Error("Shader program could not been linked!");
-		glGetProgramInfoLog(ShaderProgram, sizeof(ShaderResultLog), 0, ShaderResultLog);
-		Error("%s", ShaderResultLog);
+
+	if(!Success){
 		ShaderProgram = -1;
 	}
+
 	EndStackTraceBlock;
 	return ShaderProgram;
 }
@@ -148,6 +216,18 @@ OpenGLESInitShaders(opengles_manager * Manager){
 	PolygonShader->ColorLocation = glGetUniformLocation(PolygonShader->Program, "uColor");
 	PolygonShader->ProjectionLocation = glGetUniformLocation(PolygonShader->Program,"uProjection");
 	EndStackTraceBlock;
+}
+
+static void
+OpenGLESInitTextureCache(opengles_manager * Manager){
+	if(Manager->TextureCache.Capacity == 0){
+		Assert(Manager->TextureCache.Entries == 0);
+
+		opengles_texture_entry * Entries = Platform.AllocateMemory(sizeof(opengles_texture_entry) * GLESTextureCacheCapacity);
+		Manager->TextureCache.Capacity = GLESTextureCacheCapacity;
+
+		Assert(Manager->TextureCache.TextureCount == 0);
+	}
 }
 
 static void 
@@ -217,6 +297,8 @@ OpenGLESInit(ANativeWindow * Window, opengles_manager * Manager,
 								Manager->RectIndices[5] = 0;
 
 								OpenGLESInitShaders(Manager);
+
+								OpenGLESInitTextureCache(Manager);	
 
 								eglSwapInterval(Manager->Display, 1);
 
@@ -354,9 +436,7 @@ OpenGLESRenderCommands(opengles_manager * Manager,
 				glDisableVertexAttribArray(Shader->UVLocation);
 				GL_CHECKER
 				glDisable(GL_BLEND);
-				GL_CHECKER
-				glDeleteTextures(1, &Texture);
-				GL_CHECKER
+				GL_CHECKER				
 			} break;
 			case RenderCommandEntryType_DrawRect:{
 				render_command_entry_drawrect * Command = (render_command_entry_drawrect *)EntryAt;
