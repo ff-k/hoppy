@@ -2,15 +2,11 @@
 #include <android/input.h>
 #include <android/asset_manager.h>
 
-#include "mengine_platform.h"
-#include "mengine_opengles.h"
-
 /* Type Definitions */
 typedef struct android_app android_app;
 typedef struct android_poll_source android_poll_source;
 
 /* Constants */
-#define InitialGameMemorySize Megabytes(8)
 #define InitialRenderCommandsSize Megabytes(16)
 
 
@@ -46,6 +42,10 @@ static char __logTemp[__LogTempSize];
 	default:{ \
 		Error("An unknown case appeared in switch statement"); \
 	} break; 
+
+
+#include "mengine_platform.h"
+#include "mengine_opengles.h"
 
 /* Platform structures */
 typedef struct android_input_handler{

@@ -287,5 +287,6 @@ typedef struct rect{
 
 #define Maximum(A,B) ((A) > (B)) ? (A) : (B)
 #define Minimum(A,B) ((A) < (B)) ? (A) : (B)
+#define Absolute(X)  ((X) >= 0)  ? (X) : (-(X))
 
 #define Square(X) ((X)*(X))

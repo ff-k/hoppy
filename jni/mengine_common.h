@@ -41,6 +41,8 @@ typedef u8 b8;
 /* Utils */
 #define ZeroStruct(Struct) \
 	memset(&(Struct), 0 , sizeof((Struct)))
+#define ZeroMemory(Memory, Size) \
+	memset(Memory, 0, Size);
 
 #ifdef __unix__
 #include <sys/types.h>

@@ -1,3 +1,5 @@
+#define PixelsPerUnit 100.0f
+
 typedef enum {
 	RenderCommandEntryType_Unknown,
 	RenderCommandEntryType_Clear,
@@ -48,4 +50,17 @@ typedef struct framebuffer{
 	u32 Stride;
 } framebuffer;
 
+static v2
+ScreenToWorldCoordinates(r32 CoordX, r32 CoordY){
+	v2 Result;
 
+	/*	TODO(furkan) : Camera is not taken into account since
+		it is stable during hoppy game. But it is not the right
+		way of implementing this function
+	*/
+	Result.x = CoordX/PixelsPerUnit; 
+	Result.y = CoordY/PixelsPerUnit; 
+	Warning("Coord : (%f, %f), PPU : %f, Result : (%f, %f)",
+		CoordX, CoordY, PixelsPerUnit, Result.x, Result.y);
+	return Result;
+}

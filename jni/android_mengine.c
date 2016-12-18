@@ -54,9 +54,6 @@ AndroidInitGameMemory(game_memory * Memory,
 	BeginStackTraceBlock;
 	ZeroStruct(*Memory);
 
-	Memory->Memory = AndroidMemoryAllocate(InitialGameMemorySize);
-	Memory->Used = 0;
-	Memory->Capacity = InitialGameMemorySize;
 	Memory->GLESManager = GLESManager;
 	Memory->AssetManager = AssetManager;
 
@@ -617,13 +614,15 @@ void android_main(android_app * App) {
 
 	Verbose("Engine is initialised");
 
+	/* TODO(furkan) : Get screen resoulution from Java side */
+
 	Game.Init(&GameMemory);
 	
 	/* Main game loop */
 	s32 Ident;
 	s32 Events;
 	android_poll_source * Source;
-	
+
 	Shared.IsRunning = true;
 	while (Shared.IsRunning) {
 		/* Process platfrom messages */
@@ -632,10 +631,11 @@ void android_main(android_app * App) {
 		/* Audio Update */
 		/* Wait for FPS */
 		/* Render Frame */
+
 		RenderCommands.EntryAt = 0;
 		GameInput.PointerCount = GameInput.PointerPressed[0] ? 1 : 0;
 		GameMemory.ScreenDim = Shared.ScreenDim;
-		
+	
 		while (Shared.IsRunning) {
 			Ident = ALooper_pollAll(Shared.IsEnabled-1, 0, &Events, (void**) &Source);	
 	if(Ident < 0){

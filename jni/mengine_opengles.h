@@ -12,8 +12,6 @@
 #define GLESTextureCapacity 64
 #define GLESShaderCapacity 16
 
-#define PixelsPerUnit 100.0f
-
 typedef struct opengles_bitmap_shader{
 	GLuint Program;
 

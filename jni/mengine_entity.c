@@ -36,7 +36,7 @@ CreateEntity(game_memory * Memory, entity_type Type,
 			RigidBody = AddComponent(Entity, 
 									ComponentType_RigidBody)->Structure;
 			RigidBody->Velocity = V2(0.0f, 0.0f);
-			RigidBody->Acceleration = V2(0.0f, 0.0f);
+			RigidBody->Acceleration = V2(0.0f, GravityAcceleration);
 			RigidBody->Drag = V2(0.97f, 1.0f);
 			Entity->IsVisible = true;
 		} break;
@@ -47,7 +47,7 @@ CreateEntity(game_memory * Memory, entity_type Type,
 			component_rigid_body * RigidBody;
 			RigidBody = AddComponent(Entity, 
 									ComponentType_RigidBody)->Structure;
-			RigidBody->Velocity = V2(6.0f, 0.0f);
+			RigidBody->Velocity = V2(0.0f, 0.0f);
 			RigidBody->Acceleration = V2(0.0f, GravityAcceleration);
 			RigidBody->Drag = V2(1.0f, 1.0f);
 			Entity->IsVisible = true;

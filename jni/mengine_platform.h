@@ -8,6 +8,8 @@
 #include "mengine_render.h"
 #include "mengine_opengles.h"
 
+#include "hoppy_spawner.h"
+
 /* Platform API */
 #define PlatformMemoryAlloc(name) void * name(memsz size)
 typedef PlatformMemoryAlloc(platform_memory_alloc);
@@ -39,12 +41,7 @@ typedef struct game_input{
 	r32 DeltaTime;
 } game_input;
 
-#define EntityCapacity 128
-typedef struct game_memory{
-	void * Memory;
-	memsz Used;
-	memsz Capacity;
-	
+typedef struct game_memory{	
 	v2u ScreenDim;
 
 	opengles_manager * GLESManager;
@@ -52,6 +49,12 @@ typedef struct game_memory{
 
 	entity EntitySentinel;
 	u32 EntityCount;
+
+	/*	TODO(furkan) : Store them seperately in
+		a game_state structure
+	*/
+	u32 SpawnerCount;
+	spawner * Spawners;
 } game_memory;
 
 #define MEngineInit(name) void name(game_memory * Memory)
