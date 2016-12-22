@@ -15,11 +15,32 @@ AddComponent(entity * Entity, component_type Type){
 			ZeroStruct(*RigidBody);
 			Component->Structure = RigidBody;
 		} break;
+		case ComponentType_Collider:{
+			component_collider * Collider = Platform.AllocateMemory(sizeof(component_collider));
+			ZeroStruct(*Collider);
+			Component->Structure = Collider;
+		} break;
 		InvalidDefaultCase;
 	}
 
 	EndStackTraceBlock;
 	return Component;
+}
+
+static component_collider *
+AddCollider(entity * Entity, collider_type ColliderType, void * Bounds){
+	component * Component = AddComponent(Entity, ComponentType_Collider);
+	component_collider * Collider = Component->Structure;
+	Collider->Type = ColliderType;
+	switch(ColliderType){
+		case ColliderType_Rect:{
+			Collider->Size = *((v2 *)Bounds);
+		} break;
+		case ColliderType_Circle:{
+			Collider->Radius = *((r32 *)Bounds);
+		} break;
+		InvalidDefaultCase;
+	}
 }
 
 static void * 

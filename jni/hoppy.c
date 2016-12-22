@@ -19,11 +19,11 @@ MEngineInit(GameInit){
 
 	entity * Player = CreateEntity(	Memory, 
 									EntityType_Player,
-									V2(0.68f, 1.28f), V2(6.40f, 6.40f));
+									V2(0.68f, 1.28f), V2(6.40f, 5.30f));
 
 	spawner_params_enemy EnemySpawnerParams;
 	EnemySpawnerParams.Size = V2(1.09f, 1.28f);
-	EnemySpawnerParams.SpawnPositionMin = V2(-1.2f, 0.0f);
+	EnemySpawnerParams.SpawnPositionMin = V2(-1.2f, 1.28f);
 	EnemySpawnerParams.SpawnPositionMax = V2(-1.2f, EnemyPeakPosition);
 
 	EnemySpawnerParams.HorizontalVelocityMin = EnemySpeedHorizontalMin;
@@ -38,7 +38,7 @@ MEngineInit(GameInit){
 	
 	r32 ScreenRight = 12.80f; // TODO(furkan) : OMG!
 
-	EnemySpawnerParams.SpawnPositionMin = V2(ScreenRight + 1.2f, 0.0f);
+	EnemySpawnerParams.SpawnPositionMin = V2(ScreenRight + 1.2f, 1.28f);
 	EnemySpawnerParams.SpawnPositionMax = V2(ScreenRight + 1.2f, 
 												EnemyPeakPosition);
 

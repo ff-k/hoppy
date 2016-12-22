@@ -1,5 +1,26 @@
 #define GravityAcceleration -9.8f
 
+typedef struct rect{
+	v2 Size;
+} rect;
+
+typedef struct circle{
+	r32 Radius;
+} circle;
+
+inline b32 
+IsPointInCircle(circle Circle, v2 CirclePosition, v2 Point){
+	b32 Result = false;
+
+	r32 Radius = Square(Point.x-CirclePosition.x) + 
+					Square(Point.y-CirclePosition.y);
+	
+	if(Radius <= Square(Circle.Radius)){
+		Result = true;
+	}
+	return Result;
+}
+
 static r32
 GetVelocityAt(r32 PositionAt, r32 PositionMax, r32 Acceleration){
 	r32 Result;

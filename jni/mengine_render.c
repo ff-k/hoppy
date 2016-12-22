@@ -72,7 +72,26 @@ ExtractRenderCommands(render_commands * RenderCommands,
 				PushRenderCommand(RenderCommands,
 					  RenderCommandEntryType_DrawBitmap,
 					  &DrawBitmap);
-
+#if 1
+				component_collider * Collider;
+				Collider = (component_collider *)GetComponent(Entity, 
+												ComponentType_Collider);
+				
+				if(Collider){
+					render_command_entry_drawrect DrawRect;
+					DrawRect.Position = Entity->Transform.Position;
+					if(Collider->Type == ColliderType_Rect){
+						DrawRect.Rect.Size = Collider->Size;
+					} else {
+						DrawRect.Rect.Size = V2(Collider->Radius*2.0f,
+												Collider->Radius*2.0f);
+					}
+					DrawRect.Color = V4(1.0f, 0.0f, 1.0f, 0.5f);
+					PushRenderCommand(RenderCommands,
+									RenderCommandEntryType_DrawRect,
+									&DrawRect);
+				}
+#endif
 			} break;
 			InvalidDefaultCase;
 		}
@@ -98,10 +117,10 @@ SWRenderCommands(framebuffer * Framebuffer, render_commands * Commands){
 				EntryAt += sizeof(render_command_entry_drawrect);
 
 				rect Rect = Command->Rect;
-				if(Rect.Position.y >= Framebuffer->Height ||
-					Rect.Position.x >= Framebuffer->Width || 
-					Rect.Position.y < 0 ||
-					Rect.Position.x < 0){
+				if( Command->Position.y >= Framebuffer->Height ||
+					Command->Position.x >= Framebuffer->Width || 
+					Command->Position.y < 0 ||
+					Command->Position.x < 0){
 					/*	TODO(furkan) : This clipping must be done using 
 						camera position
 					*/
@@ -110,18 +129,17 @@ SWRenderCommands(framebuffer * Framebuffer, render_commands * Commands){
 					continue;
 				}
 
-				u32 * Row = ((u32 *) Framebuffer->Data) + (u32)(Framebuffer->Stride * (Framebuffer->Height - Rect.Position.y));
+				u32 * Row = ((u32 *) Framebuffer->Data) + (u32)(Framebuffer->Stride * (Framebuffer->Height - Command->Position.y));
 
-				s32 RowLimit = Minimum(Rect.Position.y+Rect.Size.Height, 
-										Framebuffer->Height);
-				s32 ColLimit = Minimum(Rect.Position.x+Rect.Size.Width,
+				s32 RowLimit = Minimum(Command->Position.y+Rect.Size.Height, Framebuffer->Height);
+				s32 ColLimit = Minimum(Command->Position.x+Rect.Size.Width,
 										Framebuffer->Width);
 				s32 RowAt;
 				s32 ColAt;
-				for(RowAt=Rect.Position.y; 
+				for(RowAt=Command->Position.y; 
 					RowAt<RowLimit; 
 					RowAt++){
-					for(ColAt=Rect.Position.x; 
+					for(ColAt=Command->Position.x; 
 						ColAt<ColLimit; 
 						ColAt++){
 						/* TODO(furkan) : Alpha blending!

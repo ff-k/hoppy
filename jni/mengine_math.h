@@ -67,9 +67,24 @@ v2i V2I(s32 x, s32 y){
 	return Result;
 }
 
+r32 LengthV2(v2 Vector){
+	r32 Result = sqrt(Vector.x*Vector.x + Vector.y*Vector.y);
+	return Result;
+}
+
+r32 LengthV2U(v2u Vector){
+	r32 Result = sqrt(Vector.x*Vector.x + Vector.y*Vector.y);
+	return Result;
+}
+
+r32 LengthV2I(v2i Vector){
+	r32 Result = sqrt(Vector.x*Vector.x + Vector.y*Vector.y);
+	return Result;
+}
+
 v2 NormaliseV2(v2 Vector){
 	v2 Result;
-	r32 Length = sqrt(Vector.x*Vector.x + Vector.y*Vector.y);
+	r32 Length = LengthV2(Vector);
 	Result.x = Vector.x/Length;
 	Result.y = Vector.y/Length;
 	return Result;
@@ -77,7 +92,7 @@ v2 NormaliseV2(v2 Vector){
 
 v2u NormaliseV2U(v2u Vector){
 	v2u Result;
-	r32 Length = sqrt(Vector.x*Vector.x + Vector.y*Vector.y);
+	r32 Length = LengthV2U(Vector);
 	Result.x = Vector.x/Length;
 	Result.y = Vector.y/Length;
 	return Result;
@@ -85,9 +100,16 @@ v2u NormaliseV2U(v2u Vector){
 
 v2i NormaliseV2I(v2i Vector){
 	v2i Result;
-	r32 Length = sqrt(Vector.x*Vector.x + Vector.y*Vector.y);
+	r32 Length = LengthV2I(Vector);
 	Result.x = Vector.x/Length;
 	Result.y = Vector.y/Length;
+	return Result;
+}
+
+v2 ScalarMulV2(r32 Scalar, v2 Vector){
+	v2 Result;
+	Result.x = Scalar * Vector.x;
+	Result.y = Scalar * Vector.y;
 	return Result;
 }
 
@@ -276,14 +298,6 @@ v4i V4I(s32 x, s32 y, s32 z, s32 w){
 	Result.w = w;
 	return Result;
 }
-
-typedef struct rect{
-	v2 Size;
-
-	/* NOTE(furkan) : Position vector points to 
-		bottom-left of the rectangle */
-	v2 Position;
-} rect;
 
 #define Maximum(A,B) ((A) > (B)) ? (A) : (B)
 #define Minimum(A,B) ((A) < (B)) ? (A) : (B)

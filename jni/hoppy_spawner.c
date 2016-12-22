@@ -61,7 +61,7 @@ Spawn(game_memory * Memory, spawner * Spawner){
 			RigidBody->Velocity.y = GetVelocityAt(SpawnAt.y, 
 													Params->PeakPositionY,
 													GravityAcceleration);
-			Warning("Spawed at (%f, %f) with velocity (%f, %f)",
+			Debug("Spawned at (%f, %f) with velocity (%f, %f)",
 						SpawnAt.x, SpawnAt.y, 
 						RigidBody->Velocity.x, RigidBody->Velocity.y);
 		} break;

@@ -40,6 +40,9 @@ char * PolygonFragmentShader ="\
 static void
 OpenGLESCacheTexture(opengles_texture_cache * Cache, 
 						memsz TextureID, GLuint Texture){
+	BeginStackTraceBlock;
+
+	Assert(Cache);
 	Assert(Cache->Capacity > 0)
 	opengles_texture_entry * Entry;
 	if(Cache->TextureCount == Cache->Capacity){
@@ -58,17 +61,23 @@ OpenGLESCacheTexture(opengles_texture_cache * Cache,
 	} else {
 		Entry = Cache->Entries + Cache->TextureCount;
 		Cache->TextureCount++;
+		Debug("Cached a texture! Total cached texture count : %d", 
+													Cache->TextureCount);
 	}
 
 	Entry->TextureID = TextureID;
 	Entry->Texture = Texture;
-	
+
 	Entry->Timestamp = ElapsedTimeSinceStartup();
+
+	EndStackTraceBlock;
 }
 static GLuint
 OpenGLESLoadTexture(opengles_manager * Manager,
 					asset_bitmap * TextureBitmap){
 	BeginStackTraceBlock;
+	Assert(TextureBitmap);
+
 	GLuint Texture;
 
 	b32 FoundInCache = false;
@@ -81,7 +90,6 @@ OpenGLESLoadTexture(opengles_manager * Manager,
 		if(Entry->TextureID == (memsz)TextureBitmap){
 			Texture = Entry->Texture;
 			FoundInCache = true;
-			Debug("Using a texture from texture cache");
 			break;
 		}
 	}
@@ -224,6 +232,7 @@ OpenGLESInitTextureCache(opengles_manager * Manager){
 		Assert(Manager->TextureCache.Entries == 0);
 
 		opengles_texture_entry * Entries = Platform.AllocateMemory(sizeof(opengles_texture_entry) * GLESTextureCacheCapacity);
+		Manager->TextureCache.Entries = Entries;
 		Manager->TextureCache.Capacity = GLESTextureCacheCapacity;
 
 		Assert(Manager->TextureCache.TextureCount == 0);
@@ -446,23 +455,23 @@ OpenGLESRenderCommands(opengles_manager * Manager,
 				r32 Height = Command->Rect.Size.y;
 
 				v4 Position[4];
-				Position[0].x = Command->Rect.Position.x-Width/2.0f;
-				Position[0].y = Command->Rect.Position.y+Height/2.0f;
+				Position[0].x = Command->Position.x-Width/2.0f;
+				Position[0].y = Command->Position.y+Height/2.0f;
 				Position[0].z =  0.0f;
 				Position[0].w =  1.0f;
 			
-				Position[1].x = Command->Rect.Position.x+Width/2.0f;
-				Position[1].y = Command->Rect.Position.y+Height/2.0f;
+				Position[1].x = Command->Position.x+Width/2.0f;
+				Position[1].y = Command->Position.y+Height/2.0f;
 				Position[1].z =  0.0f;
 				Position[1].w =  1.0f;
 			
-				Position[2].x = Command->Rect.Position.x+Width/2.0f;
-				Position[2].y = Command->Rect.Position.y-Height/2.0f;
+				Position[2].x = Command->Position.x+Width/2.0f;
+				Position[2].y = Command->Position.y-Height/2.0f;
 				Position[2].z =  0.0f;
 				Position[2].w =  1.0f;
 			
-				Position[3].x = Command->Rect.Position.x-Width/2.0f;
-				Position[3].y = Command->Rect.Position.y-Height/2.0f;
+				Position[3].x = Command->Position.x-Width/2.0f;
+				Position[3].y = Command->Position.y-Height/2.0f;
 				Position[3].z =  0.0f;
 				Position[3].w =  1.0f;
 
@@ -474,7 +483,10 @@ OpenGLESRenderCommands(opengles_manager * Manager,
 					GL_FALSE, (GLfloat *)Manager->ProjectionMatrix);
 
 				glUniform4fv(Shader->ColorLocation, 1, (GLfloat *)&Command->Color);
-
+				glEnable(GL_BLEND);
+				GL_CHECKER	
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				
 				glEnableVertexAttribArray(Shader->PositionLocation);
 				GL_CHECKER
 				
@@ -486,6 +498,8 @@ OpenGLESRenderCommands(opengles_manager * Manager,
 
 				glUseProgram(0);
 				GL_CHECKER
+				glDisable(GL_BLEND);
+				GL_CHECKER				
 				glDisableVertexAttribArray(Shader->PositionLocation);
 				GL_CHECKER
 			} break;

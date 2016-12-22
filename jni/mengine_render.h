@@ -18,6 +18,9 @@ typedef struct render_command_entry_drawbitmap{
 } render_command_entry_drawbitmap;
 
 typedef struct render_command_entry_drawrect{
+	/*	NOTE(furkan) : Position points to 
+		bottom-left of the rectangle*/
+	v2 Position;
 	rect Rect;
 	v4 Color;
 } render_command_entry_drawrect;

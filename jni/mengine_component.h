@@ -1,6 +1,7 @@
 typedef enum{
 	ComponentType_None,
-	ComponentType_RigidBody
+	ComponentType_RigidBody,
+	ComponentType_Collider
 } component_type;
 
 typedef struct component {
@@ -19,3 +20,23 @@ typedef struct component_rigid_body {
 	v2 Drag;
 } component_rigid_body;
 
+typedef enum{
+	ColliderType_None,
+	ColliderType_Rect,
+	ColliderType_Circle
+} collider_type;
+
+typedef struct component_collider{
+	collider_type Type;
+	v2 Offset;
+	union{	
+		struct{
+			/* Rect collider */
+			v2 Size;
+		};
+		struct{
+			/* Circle collider */
+			r32 Radius;
+		};
+	};
+} component_collider;
