@@ -4,6 +4,7 @@ typedef enum {
 	RenderCommandEntryType_Unknown,
 	RenderCommandEntryType_Clear,
 	RenderCommandEntryType_DrawRect,
+	RenderCommandEntryType_DrawCircle,
 	RenderCommandEntryType_DrawBitmap
 } render_command_entry_type;
 
@@ -18,12 +19,16 @@ typedef struct render_command_entry_drawbitmap{
 } render_command_entry_drawbitmap;
 
 typedef struct render_command_entry_drawrect{
-	/*	NOTE(furkan) : Position points to 
-		bottom-left of the rectangle*/
 	v2 Position;
 	rect Rect;
 	v4 Color;
 } render_command_entry_drawrect;
+
+typedef struct render_command_entry_drawcircle{
+	v2 Position;
+	r32 Radius;
+	v4 Color;
+} render_command_entry_drawcircle;
 
 typedef struct render_command_entry_clear{
 	v3 Color;

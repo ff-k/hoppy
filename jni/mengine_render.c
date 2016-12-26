@@ -30,6 +30,11 @@ PushRenderCommand(render_commands * Commands,
 //			Debug("Pushing a DrawRect command");
 			PushRenderCommandCase(render_command_entry_drawrect);
 		} break;
+		case RenderCommandEntryType_DrawCircle:{
+//			Debug("Pushing a DrawCircle command");
+			PushRenderCommandCase(render_command_entry_drawcircle);
+		} break;
+
 		case RenderCommandEntryType_Clear:{
 //			Debug("Pushing a Clear command");
 			PushRenderCommandCase(render_command_entry_clear);
@@ -72,24 +77,38 @@ ExtractRenderCommands(render_commands * RenderCommands,
 				PushRenderCommand(RenderCommands,
 					  RenderCommandEntryType_DrawBitmap,
 					  &DrawBitmap);
-#if 1
+#if 1	// NOTE(furkan) : Render collider bounds
 				component_collider * Collider;
 				Collider = (component_collider *)GetComponent(Entity, 
 												ComponentType_Collider);
 				
 				if(Collider){
-					render_command_entry_drawrect DrawRect;
-					DrawRect.Position = Entity->Transform.Position;
 					if(Collider->Type == ColliderType_Rect){
+						render_command_entry_drawrect DrawRect;
+						DrawRect.Position = V2(Entity->Transform.Position.x
+											+ Collider->Offset.x,
+											Entity->Transform.Position.y
+											+ Collider->Offset.y);
 						DrawRect.Rect.Size = Collider->Size;
+						DrawRect.Color = V4(0.8f, 0.6f, 0.0f, 0.5f);
+						PushRenderCommand(RenderCommands,
+										RenderCommandEntryType_DrawRect,
+										&DrawRect);
+					} else if(Collider->Type == ColliderType_Circle){
+						render_command_entry_drawcircle DrawCircle;
+						DrawCircle.Position = 
+											V2(Entity->Transform.Position.x
+											+ Collider->Offset.x,
+											Entity->Transform.Position.y
+											+ Collider->Offset.y);
+						DrawCircle.Radius = Collider->Radius;			
+						DrawCircle.Color = V4(1.0f, 0.5f, 0.0f, 0.5f);
+						PushRenderCommand(RenderCommands,
+										RenderCommandEntryType_DrawCircle,
+										&DrawCircle);
 					} else {
-						DrawRect.Rect.Size = V2(Collider->Radius*2.0f,
-												Collider->Radius*2.0f);
+						Error("ExtractRenderCommands cannot render this type of collider : %d", Collider->Type);
 					}
-					DrawRect.Color = V4(1.0f, 0.0f, 1.0f, 0.5f);
-					PushRenderCommand(RenderCommands,
-									RenderCommandEntryType_DrawRect,
-									&DrawRect);
 				}
 #endif
 			} break;

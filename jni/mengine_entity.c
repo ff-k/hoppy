@@ -32,13 +32,13 @@ CreateEntity(game_memory * Memory, entity_type Type,
 			*/
 			v2 ColliderSize = V2((r32)Memory->ScreenDim.x, 
 									0.96f);
-			/*
+			
 			component_collider * Collider = AddCollider(Entity, 
 													ColliderType_Rect,
 													&ColliderSize);
 			Collider->Offset = V2(0.0f,
 						ColliderSize.y/2.0f - Entity->Dimension.y/2.0f);
-			*/
+			
 			Entity->IsVisible = true;
 		} break;
 		case EntityType_Player: {
@@ -134,25 +134,31 @@ MoveEntity(entity * EntitySentinel, entity * Entity, r32 DeltaTime){
 							 OtherCollider->Type == ColliderType_Rect)){
 							/* NOTE(furkan) : Rect-Rect collision */
 							Warning("Rect-rect collision testing");
-						} else if((Collider->Type == ColliderType_Circle &&								OtherCollider->Type == ColliderType_Circle)){
+						} else if((Collider->Type == ColliderType_Circle &&	
+							OtherCollider->Type == ColliderType_Circle)){
 							/* NOTE(furkan) : Circle-Circle collision */
-							circle Circle;
-							Circle.Radius = Collider->Radius + 
+							circle Sum;
+							Sum.Radius = Collider->Radius + 
 											OtherCollider->Radius;
-							v2 CirclePosition = Other->Transform.Position;
-							if(IsPointInCircle(Circle, 
-												CirclePosition,
-												Position)){
-								/*	TODO(furkan) : Change velocity, 
-									i.e. handle collision 
-								*/
-								v2 CollisionVector = V2(Position.x-Other->Transform.Position.x, Position.y - Other->Transform.Position.y);
+
+							v2 EntityColliderPosition = AddV2(Position,
+														Collider->Offset);
+							v2 OtherColliderPosition = 
+											AddV2(Other->Transform.Position, 
+													OtherCollider->Offset);
+							if(IsPointInCircle(Sum, 
+												OtherColliderPosition,
+												EntityColliderPosition)){	
+								v2 CollisionVector = SubV2(EntityColliderPosition,
+														OtherColliderPosition);
+								
 								v2 OldVelocity = RigidBody->Velocity;
 								v2 NewVelocity = ScalarMulV2(
 											LengthV2(OldVelocity),
 										    NormaliseV2(CollisionVector));
 								r32 VelocityMagnitudeY
-									= GetVelocityAt(Position.y, 5.30f, GravityAcceleration);
+									= GetVelocityAt(Position.y, 5.30f, 
+													GravityAcceleration);
 								if((NewVelocity.x < 0.0f && 
 									OldVelocity.x < 0.0f) ||
 								   (NewVelocity.x > 0.0f &&
@@ -167,7 +173,8 @@ MoveEntity(entity * EntitySentinel, entity * Entity, r32 DeltaTime){
 								RigidBody->Velocity = NewVelocity;
 								HitCollider = true;
 							}
-						} else if((Collider->Type == ColliderType_Circle &&								OtherCollider->Type == ColliderType_Rect) || 
+						} else if((Collider->Type == ColliderType_Circle &&	
+								OtherCollider->Type == ColliderType_Rect) || 
 								(Collider->Type == ColliderType_Rect &&
 							OtherCollider->Type == ColliderType_Circle)){
 							/* NOTE(furkan) : Circle-Rect collision */

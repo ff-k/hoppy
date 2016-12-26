@@ -14,6 +14,9 @@
 /* TODO(furkan) : Shader cache */
 #define GLESShaderCapacity 16
 
+#define GLESCircleVertexCount 36
+#define GLESCircleIndexCount ((GLESCircleVertexCount-1)*3)
+
 typedef struct opengles_bitmap_shader{
 	GLuint Program;
 
@@ -50,6 +53,7 @@ typedef struct opengles_manager{
 
 	GLfloat ProjectionMatrix[4][4];
 	GLushort RectIndices[6];
+	GLushort CircleIndices[GLESCircleIndexCount];
 
 	opengles_bitmap_shader BitmapShader;
 	opengles_polygon_shader PolygonShader;

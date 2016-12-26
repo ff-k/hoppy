@@ -19,10 +19,10 @@ MEngineInit(GameInit){
 
 	entity * Player = CreateEntity(	Memory, 
 									EntityType_Player,
-									V2(0.68f, 1.28f), V2(6.40f, 5.30f));
+									V2(0.34f, 0.64f), V2(6.40f, 5.30f));
 
 	spawner_params_enemy EnemySpawnerParams;
-	EnemySpawnerParams.Size = V2(1.09f, 1.28f);
+	EnemySpawnerParams.Size = V2(0.545f, 0.64f);
 	EnemySpawnerParams.SpawnPositionMin = V2(-1.2f, 1.28f);
 	EnemySpawnerParams.SpawnPositionMax = V2(-1.2f, EnemyPeakPosition);
 

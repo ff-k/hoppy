@@ -96,7 +96,11 @@ OpenGLESLoadTexture(opengles_manager * Manager,
 
 	if(!FoundInCache){
 		GLuint Format = GL_RGBA;
-	
+
+		/*	TODO(furkan) : What if glGenTextures fail? 
+			Should texture cache size be dependent on 
+			device's graphics processor?
+		*/
 		glGenTextures(1, &Texture);
 		GL_CHECKER
 		glBindTexture(GL_TEXTURE_2D, Texture);
@@ -305,6 +309,24 @@ OpenGLESInit(ANativeWindow * Window, opengles_manager * Manager,
 								Manager->RectIndices[4] = 3;
 								Manager->RectIndices[5] = 0;
 
+								u32 LastIndex = GLESCircleIndexCount-1;
+								u32 Index = 0;
+								while(1){
+									Manager->CircleIndices[Index] = 0;
+									Index++;
+									Manager->CircleIndices[Index] = 
+															(Index+2)/3;
+									Index++;
+
+									if(Index == LastIndex){
+										Manager->CircleIndices[Index] = 1;
+										break;
+									} else {
+										Manager->CircleIndices[Index] = 
+										 Manager->CircleIndices[Index-1]+1;
+									}
+									Index++;
+								}
 								OpenGLESInitShaders(Manager);
 
 								OpenGLESInitTextureCache(Manager);	
@@ -502,6 +524,57 @@ OpenGLESRenderCommands(opengles_manager * Manager,
 				GL_CHECKER				
 				glDisableVertexAttribArray(Shader->PositionLocation);
 				GL_CHECKER
+			} break;
+			case RenderCommandEntryType_DrawCircle:{
+				render_command_entry_drawcircle * Command = (render_command_entry_drawcircle *)EntryAt;
+				EntryAt += sizeof(render_command_entry_drawcircle);
+
+				u32 VertexCount = GLESCircleVertexCount;
+				v4 Position[GLESCircleVertexCount];
+
+				Position[0].x = Command->Position.x;
+				Position[0].y = Command->Position.y;
+				Position[0].z = 0.0f;
+				Position[0].w = 1.0f;
+
+				r32 AngleStep = (2.0f * Pi)/(r32)(VertexCount-1);
+				r32 Angle = 0.0f;
+
+				u32 VertexIndex;
+				for(VertexIndex=1;
+					VertexIndex < VertexCount;
+					VertexIndex++){
+					Angle = (VertexIndex-1.0f)*AngleStep;
+					Position[VertexIndex].x = Command->Position.x + 
+											Command->Radius * cosf(Angle);
+					Position[VertexIndex].y = Command->Position.y + 
+											Command->Radius * sinf(Angle);
+					Position[VertexIndex].z = 0.0f;
+					Position[VertexIndex].w = 1.0f;	
+				}
+
+				opengles_polygon_shader * Shader 
+											= &Manager->PolygonShader;
+
+				glUseProgram(Shader->Program);
+				glUniformMatrix4fv(Shader->ProjectionLocation, 1, 
+					GL_FALSE, (GLfloat *)Manager->ProjectionMatrix);
+
+				glUniform4fv(Shader->ColorLocation, 1, 
+										(GLfloat *)&Command->Color);
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				
+				glEnableVertexAttribArray(Shader->PositionLocation);
+				glVertexAttribPointer(Shader->PositionLocation, 
+										4, 
+										GL_FLOAT, GL_FALSE, sizeof(v4), 
+										(GLfloat *)Position);
+				glDrawElements(GL_TRIANGLES, GLESCircleIndexCount, 
+								GL_UNSIGNED_SHORT, Manager->CircleIndices);
+				glUseProgram(0);
+				glDisable(GL_BLEND);
+				glDisableVertexAttribArray(Shader->PositionLocation);
 			} break;
 			case RenderCommandEntryType_Clear:{
 //				Error("Rendering Clear command");
