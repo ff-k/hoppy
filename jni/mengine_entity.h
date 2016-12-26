@@ -16,7 +16,6 @@ typedef struct entity {
 	transform Transform;
 	entity_type Type;
 
-	b32 Collided;
 	b8 IsEnabled;
 	b8 IsVisible;
 	struct entity * SubEntity;
