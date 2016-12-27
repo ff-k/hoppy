@@ -30,7 +30,7 @@ CreateEntity(game_memory * Memory, entity_type Type,
 			/*	TODO(furkan) : Create a floor entity and 
 				seperate collider.
 			*/
-			v2 ColliderSize = V2((r32)Memory->ScreenDim.x, 
+			v2 ColliderSize = V2(12.80f, 
 									0.96f);
 			
 			component_collider * Collider = AddCollider(Entity, 
@@ -146,8 +146,7 @@ MoveEntity(entity * EntitySentinel, entity * Entity, r32 DeltaTime){
 								CollisionVector = SubV2(EntityColliderPosition, OtherColliderPosition);
 								HitCollider = true;
 							}
-						} else if((Collider->Type == ColliderType_Circle &&
-							OtherCollider->Type == ColliderType_Circle)){
+						} else if((Collider->Type == ColliderType_Circle &&	OtherCollider->Type == ColliderType_Circle)){
 							/* NOTE(furkan) : Circle-Circle collision */
 							circle Sum;
 							Sum.Radius = Collider->Radius + 
@@ -159,12 +158,121 @@ MoveEntity(entity * EntitySentinel, entity * Entity, r32 DeltaTime){
 								CollisionVector = SubV2(EntityColliderPosition, OtherColliderPosition);
 								HitCollider = true;
 							}
-						} else if((Collider->Type == ColliderType_Circle &&	
-								OtherCollider->Type == ColliderType_Rect) || 
-								(Collider->Type == ColliderType_Rect &&
+						} else if((Collider->Type == ColliderType_Circle &&								OtherCollider->Type == ColliderType_Rect) || 								(Collider->Type == ColliderType_Rect &&
 							OtherCollider->Type == ColliderType_Circle)){
 							/* NOTE(furkan) : Circle-Rect collision */
-							Warning("Circle-rect collision testing");
+							rect Rect;
+							v2 RectPosition;
+							circle Circle;
+							v2 CirclePosition;
+
+							if(Collider->Type == ColliderType_Rect){
+								Rect.Size = Collider->Size;
+								RectPosition = EntityColliderPosition;
+								Circle.Radius = OtherCollider->Radius;
+								CirclePosition = OtherColliderPosition;
+							} else {
+								Rect.Size = OtherCollider->Size;
+								RectPosition = OtherColliderPosition;
+								Circle.Radius = Collider->Radius;
+								CirclePosition = EntityColliderPosition;
+							}
+
+							rect_circle_sum Sum = RectCircleSum(Rect, 
+															RectPosition,
+															Circle);
+
+//							Error("Rect.Size : (%f, %f)", 
+//											Rect.Size.x,
+//											Rect.Size.y);
+//
+//							Error("RectPosition : (%f, %f)", 
+//											RectPosition.x,
+//											RectPosition.y);
+//
+//							Error("Circle.Radius : %f", 
+//											Circle.Radius);
+//
+//							Error("CirclePosition : (%f, %f)", 
+//											CirclePosition.x,
+//											CirclePosition.y);
+//
+//							u32 SumIndex;
+//							for(SumIndex = 0; SumIndex<8; SumIndex++){
+//								Error("Sum[%d] : (%f, %f)",
+//											SumIndex,
+//											Sum.Vertices[SumIndex].x,
+//											Sum.Vertices[SumIndex].y);
+//							}
+
+							rect SumBorder;
+							SumBorder.Size = V2(Sum.Vertices[3].x -
+												Sum.Vertices[0].x,
+												Sum.Vertices[1].y -
+												Sum.Vertices[6].y);
+
+							v2 TopLeftCirclePosition = 
+										V2(Sum.Vertices[1].x, 
+											Sum.Vertices[0].y);
+
+							v2 TopRightCirclePosition = 
+										V2(Sum.Vertices[2].x, 
+											Sum.Vertices[3].y);
+
+							v2 BottomLeftCirclePosition = 
+										V2(Sum.Vertices[6].x, 
+											Sum.Vertices[7].y);
+
+							v2 BottomRightCirclePosition = 
+										V2(Sum.Vertices[5].x, 
+											Sum.Vertices[4].y);
+
+							if(!IsPointInRect(SumBorder, 
+											RectPosition,
+											CirclePosition)){
+								// No collision
+							} else if(CirclePosition.x < Sum.Vertices[2].x && CirclePosition.x > Sum.Vertices[1].x){
+								// Collision 0, 1, 2
+								CollisionVector = V2(0.0f, 1.0f);
+								if(RectPosition.y > CirclePosition.y){
+									CollisionVector.y = -1.0f;
+								}
+								HitCollider = true;
+							} else if(CirclePosition.y < Sum.Vertices[0].y && CirclePosition.y > Sum.Vertices[7].y){
+								// Collision 3, 4
+								CollisionVector = V2(1.0f, 0.0f);
+								if(RectPosition.x > CirclePosition.x){
+									CollisionVector.x = -1.0f;
+								}
+								HitCollider = true;
+							} else if(IsPointInCircle(Circle,
+												TopLeftCirclePosition,
+												CirclePosition)){
+								// Collision 5
+								CollisionVector = SubV2(EntityColliderPosition, OtherColliderPosition);
+								HitCollider = true;
+							} else if(IsPointInCircle(Circle,
+												TopRightCirclePosition,
+												CirclePosition)){
+								// Collision 6
+								CollisionVector = SubV2(EntityColliderPosition, OtherColliderPosition);
+								HitCollider = true;
+							} else if(IsPointInCircle(Circle,
+												BottomLeftCirclePosition,
+												CirclePosition)){
+								// Collision 7
+								CollisionVector = SubV2(EntityColliderPosition, OtherColliderPosition);
+								HitCollider = true;
+							} else if(IsPointInCircle(Circle,
+												BottomRightCirclePosition,
+												CirclePosition)){
+								// Collision 8
+								CollisionVector = SubV2(EntityColliderPosition, OtherColliderPosition);
+								HitCollider = true;
+							} else {
+								// This branch should not be taken
+								Error("Else branch taken while checking circle-rect collision");
+							}
 						} else {
 							Warning("Undefined collision check between %d and %d", Collider->Type, OtherCollider->Type);
 						}
@@ -183,6 +291,8 @@ MoveEntity(entity * EntitySentinel, entity * Entity, r32 DeltaTime){
 							   (NewVelocity.x > 0.0f &&
 							    OldVelocity.x > 0.0f)){
 								NewVelocity.x = OldVelocity.x;
+							} else if(NewVelocity.x == 0.0f){
+								NewVelocity.x = OldVelocity.x;
 							} else {
 								NewVelocity.x = -OldVelocity.x;
 							}
@@ -190,6 +300,11 @@ MoveEntity(entity * EntitySentinel, entity * Entity, r32 DeltaTime){
 											-VelocityMagnitudeY :
 											 VelocityMagnitudeY;
 							RigidBody->Velocity = NewVelocity;
+
+							Warning("Collision Vector : (%f, %f), OldVelocity : (%f, %f), NewVelocity : (%f, %f)", 
+								CollisionVector.x, CollisionVector.y,
+								OldVelocity.x, OldVelocity.y,
+								NewVelocity.x, NewVelocity.y);
 						}
 					}
 				}

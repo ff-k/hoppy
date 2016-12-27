@@ -8,6 +8,76 @@ typedef struct circle{
 	r32 Radius;
 } circle;
 
+typedef struct rect_circle_sum {
+	v2 Vertices[8];
+} rect_circle_sum;
+
+inline rect_circle_sum
+RectCircleSum(rect Rect, v2 RectPosition, circle Circle){
+	rect_circle_sum Result;
+
+	r32 RectWidthHalf = (Rect.Size.x/2.0f);
+	r32 RectHeightHalf = (Rect.Size.y/2.0f);
+
+	Result.Vertices[0] = V2(
+						RectPosition.x - 
+						RectWidthHalf - 
+						Circle.Radius,
+						RectPosition.y + 
+						RectHeightHalf);
+
+	Result.Vertices[1] = V2(
+						RectPosition.x - 
+						RectWidthHalf,
+						RectPosition.y + 
+						RectHeightHalf + 
+						Circle.Radius);
+
+	Result.Vertices[2] = V2(
+						RectPosition.x + 
+						RectWidthHalf,
+						RectPosition.y + 
+						RectHeightHalf + 
+						Circle.Radius);
+
+	Result.Vertices[3] = V2(
+						RectPosition.x + 
+						RectWidthHalf + 
+						Circle.Radius,
+						RectPosition.y + 
+						RectHeightHalf);
+
+	Result.Vertices[4] = V2(
+						RectPosition.x + 
+						RectWidthHalf + 
+						Circle.Radius,
+						RectPosition.y - 
+						RectHeightHalf);
+
+	Result.Vertices[5] = V2(
+						RectPosition.x + 
+						RectWidthHalf,
+						RectPosition.y - 
+						RectHeightHalf -
+						Circle.Radius);
+	
+	Result.Vertices[6] = V2(
+						RectPosition.x - 
+						RectWidthHalf,
+						RectPosition.y - 
+						RectHeightHalf -
+						Circle.Radius);
+
+	Result.Vertices[7] = V2(
+						RectPosition.x - 
+						RectWidthHalf - 
+						Circle.Radius,
+						RectPosition.y - 
+						RectHeightHalf);
+
+	return Result;
+}
+
 inline b32 
 IsPointInCircle(circle Circle, v2 CirclePosition, v2 Point){
 	b32 Result = false;

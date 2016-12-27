@@ -476,6 +476,10 @@ OpenGLESRenderCommands(opengles_manager * Manager,
 				r32 Width = Command->Rect.Size.x;
 				r32 Height = Command->Rect.Size.y;
 
+//				Warning("DrawRectPosition : (%f, %f), Size : (%f, %f)",
+//								Command->Position.x, Command->Position.y,
+//								Width, Height);
+
 				v4 Position[4];
 				Position[0].x = Command->Position.x-Width/2.0f;
 				Position[0].y = Command->Position.y+Height/2.0f;
