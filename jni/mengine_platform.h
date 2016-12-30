@@ -3,8 +3,11 @@
 #include "mengine_physics.h"
 #include "mengine_timer.h"
 #include "mengine_asset.h"
+#include "mengine_ui.h"
+#include "mengine_screen.h"
 #include "mengine_component.h"
 #include "mengine_entity.h"
+#include "mengine_collision.h"
 #include "mengine_render.h"
 #include "mengine_opengles.h"
 
@@ -46,13 +49,17 @@ typedef struct game_memory{
 
 	opengles_manager * GLESManager;
 	asset_manager * AssetManager;
-
+	
 	entity EntitySentinel;
 	u32 EntityCount;
+	collision_table CollisionTable;
 
 	/*	TODO(furkan) : Store them seperately in
 		a game_state structure
 	*/
+	game_screen  * CurrentScreen;
+	game_screen Screens[Screen_Count];
+
 	u32 SpawnerCount;
 	spawner * Spawners;
 } game_memory;

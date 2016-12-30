@@ -45,25 +45,18 @@ PushRenderCommand(render_commands * Commands,
 }
 
 static void
-ExtractRenderCommands(render_commands * RenderCommands, 
-						entity * EntitySentinel,
-						asset_manager * AssetManager){
+ExtractGameRenderCommands(render_commands * RenderCommands,
+							entity * EntitySentinel,
+							asset_manager * AssetManager){
 	BeginStackTraceBlock;
-	/* NOTE(furkan) : Clear screen before rendering frames*/
-	render_command_entry_clear ClearCommand;
-	ClearCommand.Color.r = 0.8f;
-	ClearCommand.Color.g = 0.0f;
-	ClearCommand.Color.b = 0.6f;
-
-	PushRenderCommand(RenderCommands, 
-					  RenderCommandEntryType_Clear, 
-					  &ClearCommand);	
-
-	/*	TODO(furkan) : Introduce sorting order and 
-		sort render commands accordingly */
 
 	entity * Entity = EntitySentinel->Prev;
 	while(Entity != EntitySentinel){
+		if(!Entity->IsEnabled || !Entity->IsVisible){
+			Entity = Entity->Prev;
+			continue;
+		}
+
 		switch(Entity->Type){
 			case EntityType_Background:
 			case EntityType_Enemy:
@@ -77,7 +70,7 @@ ExtractRenderCommands(render_commands * RenderCommands,
 				PushRenderCommand(RenderCommands,
 					  RenderCommandEntryType_DrawBitmap,
 					  &DrawBitmap);
-#if 1	// NOTE(furkan) : Render collider bounds
+#if 0	// NOTE(furkan) : Render collider bounds
 				component_collider * Collider;
 				Collider = (component_collider *)GetComponent(Entity, 
 												ComponentType_Collider);
@@ -107,7 +100,7 @@ ExtractRenderCommands(render_commands * RenderCommands,
 										RenderCommandEntryType_DrawCircle,
 										&DrawCircle);
 					} else {
-						Error("ExtractRenderCommands cannot render this type of collider : %d", Collider->Type);
+						Error("ExtractGameRenderCommands cannot render this type of collider : %d", Collider->Type);
 					}
 				}
 #endif
@@ -117,6 +110,105 @@ ExtractRenderCommands(render_commands * RenderCommands,
 
 		Entity = Entity->Prev;
 	}
+
+	EndStackTraceBlock;
+}
+
+static void
+ExtractRenderCommands(game_memory * Memory,
+						render_commands * RenderCommands){
+	BeginStackTraceBlock;
+	/* NOTE(furkan) : Clear screen before rendering frames*/
+	render_command_entry_clear ClearCommand;
+	ClearCommand.Color.r = 0.8f;
+	ClearCommand.Color.g = 0.0f;
+	ClearCommand.Color.b = 0.6f;
+
+	PushRenderCommand(RenderCommands, 
+					  RenderCommandEntryType_Clear, 
+					  &ClearCommand);	
+
+	/*	TODO(furkan) : Introduce sorting order and 
+		sort render commands accordingly */
+
+	
+	ui_controller * UI = &Memory->CurrentScreen->UIController;
+	asset_manager * AssetManager = UI->AssetManager;
+	switch(Memory->CurrentScreen->Type){
+		case Screen_MainMenu:{
+			u32 ElementIndex;
+			for(ElementIndex=0; 
+				ElementIndex < UI->ElementCount; 
+				ElementIndex++){
+				ui_element * Element = UI->Elements + ElementIndex;
+			
+				if(Element->IsEnabled){
+					render_command_entry_drawbitmap DrawBitmap;
+					DrawBitmap.Position = Element->Position;
+					DrawBitmap.Size = Element->Rect.Size;
+					DrawBitmap.Bitmap = AssetManager->Bitmaps + 
+									Element->BitmapIndex[Element->State];
+
+					PushRenderCommand(RenderCommands,
+						  RenderCommandEntryType_DrawBitmap, &DrawBitmap);
+				}
+			}
+		} break;
+		case Screen_InGame:{
+			entity * EntitySentinel = &Memory->EntitySentinel;
+			ExtractGameRenderCommands(RenderCommands, EntitySentinel,
+														AssetManager);
+			u32 ElementIndex;
+			for(ElementIndex=0; 
+				ElementIndex < UI->ElementCount; 
+				ElementIndex++){
+				ui_element * Element = UI->Elements + ElementIndex;
+				
+				if(Element->IsEnabled){
+					render_command_entry_drawbitmap DrawBitmap;
+					DrawBitmap.Position = Element->Position;
+					DrawBitmap.Size = Element->Rect.Size;
+					DrawBitmap.Bitmap = AssetManager->Bitmaps + 
+									Element->BitmapIndex[Element->State];
+
+					PushRenderCommand(RenderCommands,
+						  RenderCommandEntryType_DrawBitmap, &DrawBitmap);
+				}
+			}
+		} break;
+		case Screen_EndOfGame:{
+			entity * EntitySentinel = &Memory->EntitySentinel;
+			ExtractGameRenderCommands(RenderCommands, EntitySentinel,
+														AssetManager);
+			render_command_entry_drawrect DrawRect;
+			DrawRect.Position = V2(6.40f, 3.60f);
+			DrawRect.Rect.Size = V2(12.80, 7.20f);
+			DrawRect.Color = V4(0.6f, 0.1098f, 0.2196f, 0.3f);
+			PushRenderCommand(RenderCommands,
+								RenderCommandEntryType_DrawRect,
+								&DrawRect);
+
+			u32 ElementIndex;
+			for(ElementIndex=0; 
+				ElementIndex < UI->ElementCount; 
+				ElementIndex++){
+				ui_element * Element = UI->Elements + ElementIndex;
+				
+				if(Element->IsEnabled){
+					render_command_entry_drawbitmap DrawBitmap;
+					DrawBitmap.Position = Element->Position;
+					DrawBitmap.Size = Element->Rect.Size;
+					DrawBitmap.Bitmap = AssetManager->Bitmaps + 
+									Element->BitmapIndex[Element->State];
+
+					PushRenderCommand(RenderCommands,
+						  RenderCommandEntryType_DrawBitmap, &DrawBitmap);
+				}
+			}
+		} break;
+		InvalidDefaultCase;
+	}
+
 	EndStackTraceBlock;
 }
 

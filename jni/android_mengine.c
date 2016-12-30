@@ -2,7 +2,9 @@
 
 #include "mengine_rng.c"
 #include "mengine_asset.c"
+#include "mengine_ui.c"
 #include "mengine_component.c"
+#include "mengine_collision.c"
 #include "mengine_entity.c"
 #include "mengine_input.c"
 #include "mengine_opengles.c"
@@ -669,9 +671,7 @@ void android_main(android_app * App) {
 //				i++;
 //			}
 			
-			ExtractRenderCommands(&RenderCommands,
-									&GameMemory.EntitySentinel, 
-									GameMemory.AssetManager);
+			ExtractRenderCommands(&GameMemory, &RenderCommands);
 			
 			AndroidRenderFrame(App, &RenderCommands);
 		}

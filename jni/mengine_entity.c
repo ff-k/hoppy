@@ -1,3 +1,30 @@
+static void
+PrintEntity(entity * Entity){
+	Warning("EntityType : %d", Entity->Type);
+	component * Component = Entity->ComponentSentinel.Next;
+	while(Component != &Entity->ComponentSentinel){
+		Warning("ComponentType : %d", Component->Type);
+		Component = Component->Next;
+	}
+
+}
+
+static entity *
+GetEntity(entity * EntitySentinel, entity_type Type){
+	entity * Result = 0;
+
+	entity * Entity = EntitySentinel->Prev;
+	while(Entity != EntitySentinel){
+		if(Entity->Type == Type){
+			Result = Entity;
+			break;
+		}
+		Entity = Entity->Prev;
+	}
+
+	return Result;
+}
+
 static entity * 
 CreateEntity(game_memory * Memory, entity_type Type,
 				v2 Dimension, v2 Position){
@@ -58,6 +85,8 @@ CreateEntity(game_memory * Memory, entity_type Type,
 													ColliderType_Circle,
 													&ColliderRadius);
 
+			AddHealthComponent(Entity, 100.0f);
+
 			Entity->IsVisible = true;
 
 		} break;
@@ -77,6 +106,8 @@ CreateEntity(game_memory * Memory, entity_type Type,
 													ColliderType_Circle,
 													&ColliderRadius);
 			
+			AddAttackComponent(Entity, 25.0f);
+
 			Entity->IsVisible = true;
 		} break;
 		InvalidDefaultCase;
@@ -89,7 +120,23 @@ CreateEntity(game_memory * Memory, entity_type Type,
 }
 
 static void
-MoveEntity(entity * EntitySentinel, entity * Entity, r32 DeltaTime){
+ClearEntities(entity * EntitySentinel){
+	entity * Entity = EntitySentinel->Next;
+	while(Entity != EntitySentinel){
+		entity * NextEntity = Entity->Next;
+
+		ClearComponents(&Entity->ComponentSentinel);
+		free(Entity);
+
+		Entity = NextEntity;
+	}
+
+	EntitySentinel->Next = EntitySentinel->Prev = EntitySentinel;
+}
+
+static void
+MoveEntity(entity * EntitySentinel, entity * Entity, r32 DeltaTime,
+			collision_table * CollisionTable){
 	BeginStackTraceBlock;
 
 	component_rigid_body * RigidBody = GetComponent(Entity, 
@@ -182,29 +229,6 @@ MoveEntity(entity * EntitySentinel, entity * Entity, r32 DeltaTime){
 															RectPosition,
 															Circle);
 
-//							Error("Rect.Size : (%f, %f)", 
-//											Rect.Size.x,
-//											Rect.Size.y);
-//
-//							Error("RectPosition : (%f, %f)", 
-//											RectPosition.x,
-//											RectPosition.y);
-//
-//							Error("Circle.Radius : %f", 
-//											Circle.Radius);
-//
-//							Error("CirclePosition : (%f, %f)", 
-//											CirclePosition.x,
-//											CirclePosition.y);
-//
-//							u32 SumIndex;
-//							for(SumIndex = 0; SumIndex<8; SumIndex++){
-//								Error("Sum[%d] : (%f, %f)",
-//											SumIndex,
-//											Sum.Vertices[SumIndex].x,
-//											Sum.Vertices[SumIndex].y);
-//							}
-
 							rect SumBorder;
 							SumBorder.Size = V2(Sum.Vertices[3].x -
 												Sum.Vertices[0].x,
@@ -270,7 +294,6 @@ MoveEntity(entity * EntitySentinel, entity * Entity, r32 DeltaTime){
 								CollisionVector = SubV2(EntityColliderPosition, OtherColliderPosition);
 								HitCollider = true;
 							} else {
-								// This branch should not be taken
 								Error("Else branch taken while checking circle-rect collision");
 							}
 						} else {
@@ -279,42 +302,19 @@ MoveEntity(entity * EntitySentinel, entity * Entity, r32 DeltaTime){
 
 						if(CollisionVector.x != 0.0f || 
 							CollisionVector.y != 0.0f){
-							v2 OldVelocity = RigidBody->Velocity;
-							v2 NewVelocity = ScalarMulV2(
-										LengthV2(OldVelocity),
-									    NormaliseV2(CollisionVector));
-							r32 VelocityMagnitudeY
-								= GetVelocityAt(Position.y, 5.30f, 
-												GravityAcceleration);
-							if((NewVelocity.x < 0.0f && 
-								OldVelocity.x < 0.0f) ||
-							   (NewVelocity.x > 0.0f &&
-							    OldVelocity.x > 0.0f)){
-								NewVelocity.x = OldVelocity.x;
-							} else if(NewVelocity.x == 0.0f){
-								NewVelocity.x = OldVelocity.x;
-							} else {
-								NewVelocity.x = -OldVelocity.x;
-							}
-							NewVelocity.y = (NewVelocity.y < 0.0f) ?
-											-VelocityMagnitudeY :
-											 VelocityMagnitudeY;
-							RigidBody->Velocity = NewVelocity;
-
-							Warning("Collision Vector : (%f, %f), OldVelocity : (%f, %f), NewVelocity : (%f, %f)", 
-								CollisionVector.x, CollisionVector.y,
-								OldVelocity.x, OldVelocity.y,
-								NewVelocity.x, NewVelocity.y);
+							AddCollisionEntry(CollisionTable, 
+										CollisionVector, Entity, Other);
 						}
 					}
 				}
 				Other = Other->Prev;
 			}
 
-			if(!HitCollider){
-				Entity->Transform.Position = Position;
+			if(HitCollider){
+				break;
 			}
-
+			
+			Entity->Transform.Position = Position;
 			Position.x += Step.x;
 			Position.y += Step.y;
 		}
@@ -339,10 +339,10 @@ UpdateEntities(game_memory * Memory, r32 DeltaTime){
 	entity * EntitySentinel = &Memory->EntitySentinel;
 	entity * Entity = EntitySentinel->Prev;
 	while(Entity != EntitySentinel){
-
 		switch(Entity->Type){
 			case EntityType_Player: {
-				MoveEntity(EntitySentinel, Entity, DeltaTime);
+				MoveEntity(EntitySentinel, Entity, DeltaTime, 
+											&Memory->CollisionTable);
 				component_rigid_body * RigidBody = GetComponent(Entity, 
 												ComponentType_RigidBody); 
 				if(RigidBody){	
@@ -354,20 +354,15 @@ UpdateEntities(game_memory * Memory, r32 DeltaTime){
 						if(RigidBody->Velocity.x > 0.0){
 							RigidBody->Velocity.x *= -1.0f;
 						}
-					}
-	
-//					if(Entity->Transform.Position.y < 0.96f){
-//						if(RigidBody->Velocity.y < 0.0f){
-//							RigidBody->Velocity.y *= -1;
-//						}
-//					}
+					}	
 				}
 			} break;
 			case EntityType_Enemy: {
 				component_rigid_body * RigidBody = GetComponent(Entity, 
 												ComponentType_RigidBody); 
 				if(RigidBody){	
-					MoveEntity(EntitySentinel, Entity, DeltaTime);
+					MoveEntity(EntitySentinel, Entity, DeltaTime,
+												&Memory->CollisionTable);
 					if(Entity->Transform.Position.y < 0.96f){
 						RigidBody->Velocity.y *= -1;
 					}

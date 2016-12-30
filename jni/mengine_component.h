@@ -1,7 +1,9 @@
 typedef enum{
 	ComponentType_None,
 	ComponentType_RigidBody,
-	ComponentType_Collider
+	ComponentType_Collider,
+	ComponentType_Health,
+	ComponentType_Attack
 } component_type;
 
 typedef struct component {
@@ -13,6 +15,15 @@ typedef struct component {
 	component_type Type;
 	struct component * Next;
 } component;
+
+typedef struct component_attack {
+	r32 HitPoint;
+} component_attack;
+
+typedef struct component_health {
+	r32 Max;
+	r32 Current;
+} component_health;
 
 typedef struct component_rigid_body {
 	v2 Velocity;
