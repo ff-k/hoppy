@@ -94,8 +94,8 @@ InitialiseProgram(program_state * State, int ArgCount, char ** Args){
 
 	State->AssetTableCapacity = 512;
 	State->AssetTypeCapacity = 8;
-	State->AssetBitmapCapacity = 16;
-	State->BitmapCapacity = 32;
+	State->AssetBitmapCapacity = 64;
+	State->BitmapCapacity = 128;
 	
 	State->BitmapFileNames = (char **) malloc(sizeof(char *) * State->BitmapCapacity);
 	State->BitmapIDs = (char **)malloc(sizeof(char *) * State->BitmapCapacity);

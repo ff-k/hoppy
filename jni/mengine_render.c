@@ -34,7 +34,10 @@ PushRenderCommand(render_commands * Commands,
 //			Debug("Pushing a DrawCircle command");
 			PushRenderCommandCase(render_command_entry_drawcircle);
 		} break;
-
+		case RenderCommandEntryType_DrawString:{
+//			Debug("Pushing a DrawString command");
+			PushRenderCommandCase(render_command_entry_drawstring);
+		} break;
 		case RenderCommandEntryType_Clear:{
 //			Debug("Pushing a Clear command");
 			PushRenderCommandCase(render_command_entry_clear);
@@ -175,6 +178,53 @@ ExtractRenderCommands(game_memory * Memory,
 						  RenderCommandEntryType_DrawBitmap, &DrawBitmap);
 				}
 			}
+
+			u32 Score = Memory->Score;
+			u32 DigitCount;
+			if(Score > 999999999){
+				DigitCount = 10;
+			} else if(Score > 99999999){
+				DigitCount = 9;
+			} else if(Score > 9999999){
+				DigitCount = 8;
+			} else if(Score > 999999){
+				DigitCount = 7;
+			} else if(Score > 99999){
+				DigitCount = 6;
+			} else if(Score > 9999){
+				DigitCount = 5;
+			} else if(Score > 999){
+				DigitCount = 4;
+			} else if(Score > 99){
+				DigitCount = 3;
+			} else if(Score > 9){
+				DigitCount = 2;
+			} else {
+				DigitCount = 1;
+			}
+
+			render_command_entry_drawstring DrawString;
+			DrawString.Position = V2(0.32f, 6.56f);
+			DrawString.Color = V4(1.0f, 0.76f, 0.23f, 1.0f);
+			DrawString.Height = 0.48f;
+			DrawString.Font = Memory->Font;
+
+			u32 CharIndex = DigitCount;
+			DrawString.String[CharIndex--] = '\0';	
+			u32 Val;
+			while(1){
+				DrawString.String[CharIndex--] = '0' + (Score % 10);
+				Score /= 10;
+
+				if(Score == 0 || CharIndex < 0){
+					CharIndex++;
+					break;
+				}
+			}
+
+			PushRenderCommand(RenderCommands,
+						  RenderCommandEntryType_DrawString, &DrawString);
+
 		} break;
 		case Screen_EndOfGame:{
 			entity * EntitySentinel = &Memory->EntitySentinel;
@@ -205,6 +255,52 @@ ExtractRenderCommands(game_memory * Memory,
 						  RenderCommandEntryType_DrawBitmap, &DrawBitmap);
 				}
 			}
+
+			u32 Score = Memory->Score;
+			u32 DigitCount;
+			if(Score > 999999999){
+				DigitCount = 10;
+			} else if(Score > 99999999){
+				DigitCount = 9;
+			} else if(Score > 9999999){
+				DigitCount = 8;
+			} else if(Score > 999999){
+				DigitCount = 7;
+			} else if(Score > 99999){
+				DigitCount = 6;
+			} else if(Score > 9999){
+				DigitCount = 5;
+			} else if(Score > 999){
+				DigitCount = 4;
+			} else if(Score > 99){
+				DigitCount = 3;
+			} else if(Score > 9){
+				DigitCount = 2;
+			} else {
+				DigitCount = 1;
+			}
+
+			render_command_entry_drawstring DrawString;
+			DrawString.Position = V2(4.80f, 4.16f);
+			DrawString.Color = V4(0.6f, 0.11f, 0.22f, 1.0f);
+			DrawString.Height = 1.44f;
+			DrawString.Font = Memory->Font;
+
+			u32 CharIndex = DigitCount;
+			DrawString.String[CharIndex--] = '\0';	
+			u32 Val;
+			while(1){
+				DrawString.String[CharIndex--] = '0' + (Score % 10);
+				Score /= 10;
+
+				if(Score == 0 || CharIndex < 0){
+					CharIndex++;
+					break;
+				}
+			}
+
+			PushRenderCommand(RenderCommands,
+						  RenderCommandEntryType_DrawString, &DrawString);
 		} break;
 		InvalidDefaultCase;
 	}

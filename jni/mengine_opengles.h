@@ -24,6 +24,7 @@ typedef struct opengles_bitmap_shader{
 	GLint TextureLocation;
 	GLint PositionLocation;
 	GLint UVLocation;
+	GLint ColorLocation;
 } opengles_bitmap_shader;
 
 typedef struct opengles_polygon_shader{

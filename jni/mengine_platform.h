@@ -3,6 +3,7 @@
 #include "mengine_physics.h"
 #include "mengine_timer.h"
 #include "mengine_asset.h"
+#include "mengine_font.h"
 #include "mengine_ui.h"
 #include "mengine_screen.h"
 #include "mengine_component.h"
@@ -50,9 +51,13 @@ typedef struct game_memory{
 	opengles_manager * GLESManager;
 	asset_manager * AssetManager;
 	
+	font * Font;
+
 	entity EntitySentinel;
 	u32 EntityCount;
 	collision_table CollisionTable;
+
+	u32 Score;
 
 	/*	TODO(furkan) : Store them seperately in
 		a game_state structure

@@ -1,16 +1,27 @@
 #define PixelsPerUnit 100.0f
 
+#define DrawStringBufferSize 11
+
 typedef enum {
 	RenderCommandEntryType_Unknown,
 	RenderCommandEntryType_Clear,
 	RenderCommandEntryType_DrawRect,
 	RenderCommandEntryType_DrawCircle,
-	RenderCommandEntryType_DrawBitmap
+	RenderCommandEntryType_DrawBitmap,
+	RenderCommandEntryType_DrawString
 } render_command_entry_type;
 
 typedef struct render_command_entry{
 	render_command_entry_type Type;
 } render_command_entry;
+
+typedef struct render_command_entry_drawstring{
+	v2 Position;
+	v4 Color;
+	r32 Height;
+	font * Font;
+	char String[DrawStringBufferSize];
+} render_command_entry_drawstring;
 
 typedef struct render_command_entry_drawbitmap{
 	v2 Position;

@@ -17,9 +17,10 @@ char * BitmapFragmentShader ="\
 	\
 	varying vec2 vTexture;\
 	uniform sampler2D uTexture;\
+	uniform vec4 uColor;\
 	\
 	void main() {\
-		gl_FragColor = texture2D(uTexture, vTexture);\
+		gl_FragColor = uColor * texture2D(uTexture, vTexture);\
 	}";
 
 char * PolygonVertexShader ="\
@@ -217,6 +218,7 @@ OpenGLESInitShaders(opengles_manager * Manager){
 	BitmapShader->UVLocation = glGetAttribLocation(BitmapShader->Program, "aTexture");
 	BitmapShader->ProjectionLocation = glGetUniformLocation(BitmapShader->Program,"uProjection");
 	BitmapShader->TextureLocation = glGetUniformLocation(BitmapShader->Program, "uTexture");
+	BitmapShader->ColorLocation = glGetUniformLocation(BitmapShader->Program, "uColor");
 
 	opengles_polygon_shader * PolygonShader = &Manager->PolygonShader;
 	PolygonShader->Program = OpenGLESLoadShader(Manager,
@@ -428,6 +430,8 @@ OpenGLESRenderCommands(opengles_manager * Manager,
 					GL_FALSE, (GLfloat *)Manager->ProjectionMatrix);
 				GL_CHECKER
 				glUniform1i(Shader->TextureLocation, 0);
+				v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
+				glUniform4fv(Shader->ColorLocation, 1, (GLfloat *)&Color);
 				GL_CHECKER
 				glEnableVertexAttribArray(Shader->PositionLocation);
 				GL_CHECKER	
@@ -579,6 +583,107 @@ OpenGLESRenderCommands(opengles_manager * Manager,
 				glUseProgram(0);
 				glDisable(GL_BLEND);
 				glDisableVertexAttribArray(Shader->PositionLocation);
+			} break;
+			case RenderCommandEntryType_DrawString:{
+//				Error("Rendering DrawString command");
+				render_command_entry_drawstring * Command = (render_command_entry_drawstring *)EntryAt;
+				EntryAt += sizeof(render_command_entry_drawstring);
+
+				/*	TODO(furkan) : This branch needs to 
+					be reimplemented.
+				*/
+				r32 Width = Command->Height * 0.75f;
+				r32 Height = Command->Height;
+
+				v4 Position[4];
+				Position[0].x = Command->Position.x-Width/2.0f;
+				Position[0].y = Command->Position.y+Height/2.0f;
+				Position[0].z =  0.0f;
+				Position[0].w =  1.0f;
+			
+				Position[1].x = Command->Position.x+Width/2.0f;
+				Position[1].y = Command->Position.y+Height/2.0f;
+				Position[1].z =  0.0f;
+				Position[1].w =  1.0f;
+			
+				
+				Position[2].y = Command->Position.y-Height/2.0f;
+				Position[2].z =  0.0f;
+				Position[2].w =  1.0f;
+			
+				Position[3].x = Command->Position.x-Width/2.0f;
+				Position[3].y = Command->Position.y-Height/2.0f;
+				Position[3].z =  0.0f;
+				Position[3].w =  1.0f;
+
+				/*	TODO(furkan) : Pack UV coordinates with texture data.
+					Current version will cause a lot pain in the butt
+					for texture atlases.
+				*/
+				v2 UV[4];
+				UV[0] = V2(0.0f, 1.0f);
+				UV[1] = V2(1.0f, 1.0f);
+				UV[2] = V2(1.0f, 0.0f);
+				UV[3] = V2(0.0f, 0.0f);
+
+				opengles_bitmap_shader * Shader = &Manager->BitmapShader;
+				glUseProgram(Shader->Program);
+
+				glUniformMatrix4fv(Shader->ProjectionLocation, 1, 
+					GL_FALSE, (GLfloat *)Manager->ProjectionMatrix);
+
+				glUniform1i(Shader->TextureLocation, 0);
+				glUniform4fv(Shader->ColorLocation, 1, 
+										(GLfloat *)&Command->Color);
+
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+				u32 CharIndex = 0;
+				while(Command->String[CharIndex]){
+					u8 Char = Command->String[CharIndex];
+
+					Position[3].x = Position[0].x = Command->Position.x +
+													(Width*CharIndex) -
+													Width/2.0f;
+					Position[2].x = Position[1].x = Command->Position.x +
+													(Width*CharIndex) +
+													Width/2.0f;
+
+					glEnableVertexAttribArray(Shader->PositionLocation);
+					glVertexAttribPointer(Shader->PositionLocation, 4,
+							GL_FLOAT, GL_FALSE, sizeof(v4), Position);				
+					glEnableVertexAttribArray(Shader->UVLocation);
+					glVertexAttribPointer(Shader->UVLocation, 2,
+									GL_FLOAT, GL_FALSE, sizeof(v2), UV);
+
+					GLuint Texture = -1;
+					
+					if(Char >= '0' && Char <= '9'){
+						Texture = OpenGLESLoadTexture(Manager, 
+								Command->Font->Numeric[Char - '0']);
+					} else if(Char >= 'A' && Char <= 'Z'){
+						Texture = OpenGLESLoadTexture(Manager, 
+								Command->Font->LettersUpper[Char - 'A']);
+					} else if(Char >= 'z' && Char <= 'z'){
+						Texture = OpenGLESLoadTexture(Manager, 
+								Command->Font->LettersLower[Char - 'a']);
+					}
+
+					if(Texture != -1){
+						glActiveTexture(GL_TEXTURE0);
+						glBindTexture(GL_TEXTURE_2D, Texture);
+						glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT,
+												Manager->RectIndices);
+					}
+
+					CharIndex++;
+				}
+
+				glUseProgram(0);
+				glDisableVertexAttribArray(Shader->PositionLocation);
+				glDisableVertexAttribArray(Shader->UVLocation);
+				glDisable(GL_BLEND);
 			} break;
 			case RenderCommandEntryType_Clear:{
 //				Error("Rendering Clear command");

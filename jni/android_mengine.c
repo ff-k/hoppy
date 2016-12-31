@@ -2,6 +2,7 @@
 
 #include "mengine_rng.c"
 #include "mengine_asset.c"
+#include "mengine_font.c"
 #include "mengine_ui.c"
 #include "mengine_component.c"
 #include "mengine_collision.c"

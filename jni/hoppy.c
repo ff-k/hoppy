@@ -106,6 +106,8 @@ MEngineInit(GameInit){
 	CreateUIElement(UI, PopUpHomeIconRect, 
 						PopUpHomeIconPosition, UIElement_IconHome);
 
+	Memory->Font = CreateFont(Memory->AssetManager);
+
 	EndStackTraceBlock;
 }
 
@@ -176,6 +178,8 @@ BeginGame(game_memory * Memory){
 
 	Memory->CurrentScreen = Memory->Screens + Screen_InGame;
 
+	Memory->Score = 0;
+
 	EndStackTraceBlock;
 }
 
@@ -211,7 +215,8 @@ MEngineUpdate(GameUpdate){
 				}
 			}
 		} break;
-		case Screen_InGame:{		
+		case Screen_InGame:{
+			Memory->Score += (u32) (Input->DeltaTime * 100.0f);
 			Memory->CollisionTable.EntryCount = 0;
 
 			ProcessInputs(Memory, Input);
