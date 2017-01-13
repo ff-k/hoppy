@@ -11,6 +11,7 @@
 #include "mengine_collision.h"
 #include "mengine_render.h"
 #include "mengine_opengles.h"
+#include "mengine_opensles.h"
 
 #include "hoppy_spawner.h"
 
@@ -20,6 +21,8 @@ typedef PlatformMemoryAlloc(platform_memory_alloc);
 
 typedef struct platform_api{
 	platform_memory_alloc * AllocateMemory;
+
+	void * PlatformData;
 } platform_api;
 
 static platform_api Platform;
@@ -49,6 +52,7 @@ typedef struct game_memory{
 	v2u ScreenDim;
 
 	opengles_manager * GLESManager;
+	opensles_manager * SLESManager;
 	asset_manager * AssetManager;
 	
 	font * Font;

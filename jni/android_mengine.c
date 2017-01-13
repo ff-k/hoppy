@@ -8,6 +8,7 @@
 #include "mengine_collision.c"
 #include "mengine_entity.c"
 #include "mengine_input.c"
+#include "mengine_opensles.c"
 #include "mengine_opengles.c"
 #include "mengine_render.c"
 #include "hoppy.c"
@@ -16,6 +17,26 @@ static void
 SegmentationFaultHandler(int Signal){
 	PrintStackTrace;
 	exit(0);
+}
+
+static b32
+OpenFileDescriptor(asset_file * File){
+	b32 Result = true;
+
+	android_shared_data * PlatformData = 
+							(android_shared_data *)Platform.PlatformData;
+	AAsset * Asset = AAssetManager_open(PlatformData->AndroidAssetManager,
+										File->Path, AASSET_MODE_UNKNOWN);
+	if(Asset){
+		File->Descriptor = AAsset_openFileDescriptor(Asset, 
+												(off_t *)&File->Offset,
+												(off_t *)&File->Length);
+		AAsset_close(Asset);
+	} else {
+		Result = false;
+	}
+
+	return Result;
 }
 
 static PlatformMemoryAlloc(AndroidMemoryAllocate){
@@ -28,10 +49,13 @@ static PlatformMemoryAlloc(AndroidMemoryAllocate){
 	return Allocated;
 }
 
-static void AndroidInitPlatformAPI(platform_api * PlatformAPI){
+static void 
+AndroidInitPlatformAPI(platform_api * PlatformAPI, 
+						android_shared_data * PlatformData){
 	BeginStackTraceBlock;
 	ZeroStruct(*PlatformAPI);
 	PlatformAPI->AllocateMemory = AndroidMemoryAllocate;
+	PlatformAPI->PlatformData = PlatformData;
 
 	Verbose("Initialised PlatformAPI");
 	EndStackTraceBlock;
@@ -149,7 +173,20 @@ AndroidRenderFrame(android_app * App, render_commands * Commands){
 static void AndroidOnActivate(android_app * App){
 	BeginStackTraceBlock;
 	android_shared_data * Shared = App->userData;
+	
 	AndroidInitRenderer(App);
+
+	asset_file BackgroundMusicFile;
+	ZeroStruct(BackgroundMusicFile);
+	BackgroundMusicFile.Path = "background_music.mp3";
+	if(OpenFileDescriptor(&BackgroundMusicFile)){
+		InitOpenSLESManager(&Shared->SLESManager, &BackgroundMusicFile);
+		PlayCurrentBackgroundMusic(&Shared->SLESManager);
+	} else {
+		Warning("Background music's file descriptor cannot been opened");
+		InitOpenSLESManager(&Shared->SLESManager, 0);
+	}
+
 	Shared->IsEnabled = true;
 	EndStackTraceBlock;
 }
@@ -158,6 +195,7 @@ static void AndroidOnDeactivate(android_app * App){
 	BeginStackTraceBlock;
 	android_shared_data * Shared = App->userData;
 	AndroidDestroyRenderer(App);
+	DestroyOpenSLESManager(&Shared->SLESManager);
 	Shared->IsEnabled = false;
 	EndStackTraceBlock;
 }
@@ -571,8 +609,9 @@ void android_main(android_app * App) {
 	
 	App->userData = &Shared;
 	App->onAppCmd = AndroidMainCallback;
-	
-	AndroidInitPlatformAPI(&Platform);
+	Shared.AndroidAssetManager = App->activity->assetManager;
+
+	AndroidInitPlatformAPI(&Platform, &Shared);
 
 	/*
 	Verbose("Internal dir : %s", App->activity->internalDataPath);
@@ -589,7 +628,7 @@ void android_main(android_app * App) {
 	/* Initialise Asset Manager */
 	asset_manager AssetManager;
 	ZeroStruct(AssetManager);
-	AndroidInitAssetManager(App->activity->assetManager,
+	AndroidInitAssetManager(Shared.AndroidAssetManager,
 						&AssetManager, 
 						"hoppy_assets.mass");
 

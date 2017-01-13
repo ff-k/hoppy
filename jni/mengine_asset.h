@@ -34,6 +34,16 @@ typedef struct asset_package {
 	asset_bitmap * Bitmaps;
 } asset_package;
 
+typedef struct asset_file {
+	char * Path;
+
+	s32 Descriptor;
+	s32 Offset;
+	s32 Length;
+} asset_file;
+/* NOTE(furkan) : Should be implemented on platform layer */
+static b32 OpenFileDescriptor(asset_file * File);	
+
 typedef struct asset_manager{
 	uint16_t AssetTypeCount;
 	asset_type * AssetTypes;

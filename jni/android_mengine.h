@@ -46,6 +46,7 @@ static char __logTemp[__LogTempSize];
 
 #include "mengine_platform.h"
 #include "mengine_opengles.h"
+#include "mengine_opensles.h"
 
 /* Platform structures */
 typedef struct android_input_handler{
@@ -57,7 +58,9 @@ typedef struct android_shared_data{
 #if !SW_RENDERER
 	opengles_manager GLESManager;
 #endif
-
+	
+	opensles_manager SLESManager;
+	AAssetManager * AndroidAssetManager;
 	android_input_handler InputHandler;
 
 	v2u ScreenDim;
