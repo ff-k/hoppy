@@ -6,7 +6,7 @@ hoppy is a 2D game written for Android platform as a term project. It is written
 
 # Notes
 
-* The project uses Android NDK, Revision 10e.
+* The project is developed with Android NDK, Revision 10e.
 * As rendering backend, OpenGL ES 2 is used.
 * Audio management is handled with the help of OpenSL ES.
 * A simple 2D collision detection system, which offers box and circle colliders, is implemented.
