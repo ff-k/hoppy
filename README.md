@@ -1,4 +1,5 @@
-hoppy is a 2D game written for Android platform as a term project. It is written in C/C++ from scratch. Gameplay video can be found [here](  )
+# hoppy 
+hoppy is a 2D game written for Android platform as a term project. It is written in C/C++ from scratch. Gameplay video can be found [here]( https://youtu.be/MD63THgcEbM )
 
 ![Main menu](mainmenu.jpg)
 ![Gameplay](ingame.jpg)
